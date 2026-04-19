@@ -1,0 +1,126 @@
+export type CategoryKind = 'skills' | 'hooks' | 'models' | 'workspace' | 'mcp' | 'sessions' | 'cron' | 'memory';
+
+export interface ServiceStatus {
+  active: 'running' | 'stopped' | 'failed' | 'unknown';
+  since: string;
+  socketHealth: 'ok' | 'stale' | 'unknown';
+  version: string;
+}
+
+export type SkillScope = 'built-in' | 'installed';
+
+export type ScopeFilter = 'all' | 'built-in' | 'installed';
+
+export type ActivePanel = 'categories' | 'items';
+
+// ─── Item types ───────────────────────────────────────────────────────────────
+
+export interface OcSkill {
+  kind: 'skill';
+  id: string;
+  name: string;
+  description: string;
+  scope: SkillScope;
+  filePath: string;
+  fullContent: string;
+}
+
+export interface OcHook {
+  kind: 'hook';
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  rawConfig: Record<string, unknown>;
+}
+
+export interface OcModel {
+  kind: 'model';
+  id: string;
+  name: string;
+  provider: string;
+  reasoning: boolean;
+  contextWindow: number;
+  maxTokens: number;
+  costInput: number;
+  costOutput: number;
+}
+
+export interface OcWorkspaceFile {
+  kind: 'workspace';
+  id: string;
+  name: string;
+  filePath: string;
+  preview: string;
+  fullContent: string;
+  wordCount: number;
+  lastModified: string;
+}
+
+export interface OcMcpServer {
+  kind: 'mcp';
+  id: string;
+  name: string;
+  url?: string;
+  transport: string;
+}
+
+export interface OcSession {
+  kind: 'session';
+  id: string;
+  name: string;
+  channel: string;
+  updatedAt: number;
+  sessionFile: string;
+  sizeKb: number;
+}
+
+export interface OcCronJob {
+  kind: 'cron';
+  id: string;
+  name: string;
+  schedule: string;
+  command: string;
+  enabled: boolean;
+  description?: string;
+}
+
+export interface OcMemoryChunk {
+  kind: 'memory';
+  id: string;
+  name: string;
+  path: string;
+  source: string;
+  startLine: number;
+  endLine: number;
+  model: string;
+  text: string;
+  updatedAt: number;
+}
+
+export type AnyItem =
+  | OcSkill
+  | OcHook
+  | OcModel
+  | OcWorkspaceFile
+  | OcMcpServer
+  | OcSession
+  | OcCronJob
+  | OcMemoryChunk;
+
+export interface Category {
+  kind: CategoryKind;
+  label: string;
+  count: number;
+}
+
+export interface AppData {
+  skills: OcSkill[];
+  hooks: OcHook[];
+  models: OcModel[];
+  workspace: OcWorkspaceFile[];
+  mcp: OcMcpServer[];
+  sessions: OcSession[];
+  cron: OcCronJob[];
+  memory: OcMemoryChunk[];
+}
