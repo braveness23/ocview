@@ -17,6 +17,9 @@ ocview started as a read-only browser for OpenClaw state. The goal is to make it
 
 Guiding principle: every item should be fully readable, not just listed. If a user can see that a hook exists but can't see what it does or where its code lives, the tool has failed.
 
+**Planned:**
+- Log viewer category: tail/browse `journalctl --user -u openclaw-gateway.service` output and files in `~/.openclaw/logs/` (config-health.json, sync-token.log, config-audit.jsonl). Should support live-tail mode and filtering by level/keyword.
+
 **Completed:**
 - Full content viewing with scroll (skills, workspace files, memory chunks, hooks)
 - Session transcript viewer with collapsible tool calls
