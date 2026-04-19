@@ -19,6 +19,11 @@ interface Props {
   onSearchChange: (v: string) => void;
   onSearchSubmit: () => void;
   onSearchCancel: () => void;
+  newSkillName: string | null;
+  onNewSkillChange: (v: string) => void;
+  onNewSkillSubmit: (v: string) => void;
+  onNewSkillCancel: () => void;
+  confirmDelete: AnyItem | null;
   status: ServiceStatus | null;
   reloading: boolean;
   notification: string | null;
@@ -81,6 +86,11 @@ export function Layout({
   onSearchChange,
   onSearchSubmit,
   onSearchCancel,
+  newSkillName,
+  onNewSkillChange,
+  onNewSkillSubmit,
+  onNewSkillCancel,
+  confirmDelete,
   status,
   reloading,
   notification,
@@ -129,6 +139,10 @@ export function Layout({
           onSearchChange={onSearchChange}
           onSearchSubmit={onSearchSubmit}
           onSearchCancel={onSearchCancel}
+          newSkillName={newSkillName}
+          onNewSkillChange={onNewSkillChange}
+          onNewSkillSubmit={onNewSkillSubmit}
+          onNewSkillCancel={onNewSkillCancel}
           visibleCount={visibleCount}
           height={panelHeight}
         />
@@ -136,6 +150,8 @@ export function Layout({
 
       <StatusBar
         searchActive={searchActive}
+        newSkillActive={newSkillName !== null}
+        confirmDelete={confirmDelete}
         category={category}
         scopeFilter={scopeFilter}
         selectedItem={items[selectedItemIndex] ?? null}

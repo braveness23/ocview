@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import TextInput from 'ink-text-input';
 import type { AnyItem, CategoryKind, OcSkill, OcMemoryChunk } from '../types.js';
 import { ScopeBadge } from './ScopeBadge.js';
 import { SearchBar } from './SearchBar.js';
@@ -14,6 +15,10 @@ interface Props {
   onSearchChange: (v: string) => void;
   onSearchSubmit: () => void;
   onSearchCancel: () => void;
+  newSkillName: string | null;
+  onNewSkillChange: (v: string) => void;
+  onNewSkillSubmit: (v: string) => void;
+  onNewSkillCancel: () => void;
   visibleCount: number;
   height: number;
 }
@@ -39,6 +44,10 @@ export function ItemPanel({
   onSearchChange,
   onSearchSubmit,
   onSearchCancel,
+  newSkillName,
+  onNewSkillChange,
+  onNewSkillSubmit,
+  onNewSkillCancel,
   visibleCount,
   height,
 }: Props) {
@@ -70,7 +79,17 @@ export function ItemPanel({
         )}
       </Box>
 
-      {searchActive ? (
+      {newSkillName !== null ? (
+        <Box>
+          <Text color="green">+ </Text>
+          <TextInput
+            value={newSkillName}
+            onChange={onNewSkillChange}
+            onSubmit={onNewSkillSubmit}
+            placeholder="skill-directory-name"
+          />
+        </Box>
+      ) : searchActive ? (
         <SearchBar
           value={searchQuery}
           onChange={onSearchChange}

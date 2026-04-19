@@ -10,6 +10,7 @@ import type {
   OcSession,
   OcHook,
   OcCronJob,
+  OcSkill,
   ServiceStatus,
 } from './types.js';
 import { Layout } from './components/Layout.js';
@@ -18,7 +19,7 @@ import { TranscriptView } from './components/TranscriptView.js';
 import { useMouseScroll } from './hooks/useMouseScroll.js';
 import { loadAll } from './data/loader.js';
 import { loadStatus } from './data/status.js';
-import { getEditableFilePath, openInEditor, toggleHook, toggleCron } from './utils/actions.js';
+import { getEditableFilePath, openInEditor, toggleHook, toggleCron, createSkill, deleteSkill, deleteCronJob } from './utils/actions.js';
 
 const CATEGORY_ORDER: CategoryKind[] = [
   'skills', 'hooks', 'models', 'workspace', 'mcp', 'sessions', 'cron', 'memory',
@@ -72,6 +73,8 @@ export default function App({ initialData }: Props) {
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('all');
   const [modalItem, setModalItem] = useState<AnyItem | null>(null);
   const [transcriptSession, setTranscriptSession] = useState<OcSession | null>(null);
+  const [newSkillName, setNewSkillName] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AnyItem | null>(null);
 
   // Load service status async on mount (systemctl calls can be slow)
   useEffect(() => {
@@ -139,10 +142,51 @@ export default function App({ initialData }: Props) {
     );
   });
 
+  const handleNewSkillSubmit = useCallback((value: string) => {
+    const name = value.trim();
+    if (name) {
+      try {
+        const path = createSkill(name);
+        setNewSkillName(null);
+        openInEditor(path);
+        reload();
+      } catch (e: any) {
+        setNewSkillName(null);
+        setNotification(`Failed: ${e?.message ?? e}`);
+      }
+    } else {
+      setNewSkillName(null);
+    }
+  }, [reload]);
+
   useInput((input, key) => {
     if (transcriptSession) return;
     if (modalItem) {
       if (key.escape || input === 'q') setModalItem(null);
+      return;
+    }
+
+    if (newSkillName !== null) {
+      if (key.escape) setNewSkillName(null);
+      return;
+    }
+
+    if (confirmDelete !== null) {
+      if (input === 'y') {
+        try {
+          if (confirmDelete.kind === 'skill') {
+            deleteSkill(confirmDelete as OcSkill);
+            setNotification(`Deleted skill "${confirmDelete.name}"`);
+          } else if (confirmDelete.kind === 'cron') {
+            deleteCronJob(confirmDelete as OcCronJob);
+            setNotification(`Deleted cron job "${confirmDelete.name}"`);
+          }
+          reload();
+        } catch (e: any) {
+          setNotification(`Failed: ${e?.message ?? e}`);
+        }
+      }
+      setConfirmDelete(null);
       return;
     }
 
@@ -197,6 +241,17 @@ export default function App({ initialData }: Props) {
         setSelectedItemIndex(i => Math.min(i + 1, filteredItems.length - 1));
       } else if (input === 'k' || key.upArrow) {
         setSelectedItemIndex(i => Math.max(i - 1, 0));
+      } else if (input === 'd' && selectedItem) {
+        if (selectedItem.kind === 'skill' && (selectedItem as OcSkill).scope === 'installed') {
+          setConfirmDelete(selectedItem);
+        } else if (selectedItem.kind === 'skill') {
+          setNotification('Cannot delete built-in skills');
+        } else if (selectedItem.kind === 'cron') {
+          setConfirmDelete(selectedItem);
+        }
+      } else if (input === 'n' && selectedCategory === 'skills') {
+        setNewSkillName('');
+        setActivePanel('items');
       } else if (input === 'o' && selectedItem) {
         // Open in $EDITOR
         const path = getEditableFilePath(selectedItem);
@@ -251,6 +306,11 @@ export default function App({ initialData }: Props) {
       onSearchChange={setSearchQuery}
       onSearchSubmit={() => setSearchActive(false)}
       onSearchCancel={() => { setSearchActive(false); setSearchQuery(''); }}
+      newSkillName={newSkillName}
+      onNewSkillChange={setNewSkillName}
+      onNewSkillSubmit={handleNewSkillSubmit}
+      onNewSkillCancel={() => setNewSkillName(null)}
+      confirmDelete={confirmDelete}
       status={status}
       reloading={reloading}
       notification={notification}

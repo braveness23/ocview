@@ -8,10 +8,15 @@ const CRON_FILE = join(homedir(), '.openclaw', 'cron', 'jobs.json');
 interface CronJobEntry {
   id?: string;
   name?: string;
-  schedule?: string;
+  schedule?: string | { expr?: string; tz?: string; kind?: string };
   command?: string;
+  payload?: { text?: string; kind?: string };
   enabled?: boolean;
   description?: string;
+  agentId?: string;
+  sessionTarget?: string;
+  wakeMode?: string;
+  state?: { nextRunAtMs?: number };
 }
 
 interface CronJobsJson {
@@ -31,15 +36,22 @@ export function loadCron(): OcCronJob[] {
         ? raw.jobs
         : [];
 
-    return jobs.map((job, i) => ({
-      kind: 'cron' as const,
-      id: job.id ?? `cron#${i}`,
-      name: job.name ?? job.id ?? `job-${i}`,
-      schedule: job.schedule ?? '',
-      command: job.command ?? '',
-      enabled: job.enabled !== false,
-      description: job.description,
-    }));
+    return jobs.map((job, i) => {
+      const schedule = typeof job.schedule === 'string'
+        ? job.schedule
+        : job.schedule?.expr ?? '';
+      const tz = typeof job.schedule === 'object' ? job.schedule?.tz : undefined;
+      const command = job.command ?? job.payload?.text ?? '';
+      return {
+        kind: 'cron' as const,
+        id: job.id ?? `cron#${i}`,
+        name: job.name ?? job.id ?? `job-${i}`,
+        schedule: tz ? `${schedule} (${tz})` : schedule,
+        command,
+        enabled: job.enabled !== false,
+        description: job.description,
+      };
+    });
   } catch {
     return [];
   }

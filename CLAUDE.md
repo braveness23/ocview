@@ -23,6 +23,8 @@ Guiding principle: every item should be fully readable, not just listed. If a us
 - Live service status header (running/stopped/failed, since, socket health, version)
 - Actions: `o` open in `$EDITOR` (auto-reloads on exit), `r` reload data, `t` toggle hook/cron enabled
 - Session channel extraction from filename prefix or JSONL metadata fields
+- Skill management: `n` create new installed skill (prompts for dir name, scaffolds SKILL.md, opens in editor), `d` delete installed skill (with y/n confirmation); built-in skills are protected
+- Cron job deletion: `d` removes the job from `jobs.json` (with confirmation)
 
 ## Architecture
 
@@ -64,9 +66,15 @@ TranscriptView          — full-screen session reader; replaces DetailModal for
 - `openInEditor(filePath)` — exits raw mode, spawns `$EDITOR`, restores raw mode on exit. App auto-reloads after.
 - `toggleHook(item)` — rewrites `openclaw.json` flipping `hooks.internal.entries.<name>.enabled`
 - `toggleCron(item)` — rewrites `cron/jobs.json` flipping the matching job's `enabled`
+- `createSkill(dirName)` — creates `~/.openclaw/skills/<dirName>/SKILL.md` with frontmatter scaffold; returns file path
+- `deleteSkill(item)` — `rmSync` the skill directory (installed skills only)
+- `deleteCronJob(item)` — filters the job out of `cron/jobs.json` by id/name
 - `getEditableFilePath(item)` — returns the file path for skill/workspace/memory items; null for others
 
-Keys: `o` (edit), `t` (toggle), `r` (reload). StatusBar shows `o`/`t` only when relevant to the selected item.
+Keys: `o` (edit), `t` (toggle), `r` (reload), `n` (new skill), `d` (delete skill/cron). StatusBar shows hints only when relevant to the selected item. Confirm-delete prompt (`y/n`) replaces the status bar line.
+
+#### Input mode priority (App.tsx `useInput`)
+`transcriptSession` → `modalItem` → `newSkillName` → `confirmDelete` → `searchActive` → normal navigation. Each mode short-circuits the ones below it.
 
 ### Service status (`src/data/status.ts`)
 
@@ -108,6 +116,10 @@ Notable fields added for rich detail views:
 ### Build
 
 `build.ts` bundles with Bun's bundler targeting `bun`, stubs out `react-devtools-core`, and patches the shebang to use the absolute path to `bun` (so the installed binary works without `bun` on `PATH`).
+
+### Cron job format
+
+`~/.openclaw/cron/jobs.json` uses a newer format where `schedule` is a nested object `{expr, tz, kind}` rather than a plain string, and the prompt text is in `payload.text` rather than a top-level `command` field. The loader in `cron.ts` normalises both into the flat `OcCronJob` shape (`schedule` → `"expr (tz)"`, `command` → `payload.text`). Don't assume the old flat format.
 
 ### Skill parsing
 
