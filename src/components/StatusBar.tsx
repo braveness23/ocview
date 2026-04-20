@@ -55,7 +55,7 @@ export function StatusBar({ searchActive, newSkillActive, confirmDelete, categor
     ? selectedItem.kind === 'skill' || selectedItem.kind === 'workspace' || selectedItem.kind === 'memory'
     : false;
   const canToggle = selectedItem
-    ? selectedItem.kind === 'hook' || selectedItem.kind === 'cron'
+    ? selectedItem.kind === 'hook' || selectedItem.kind === 'cron' || selectedItem.kind === 'webhook'
     : false;
   const canDelete = selectedItem
     ? (selectedItem.kind === 'skill' && (selectedItem as any).scope === 'installed') || selectedItem.kind === 'cron'

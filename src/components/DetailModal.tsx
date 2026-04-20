@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { homedir } from 'os';
 import { execSync } from 'child_process';
+import { readFileSync } from 'fs';
+import { parseChangelog, stripPrs } from '../data/updates.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type {
   AnyItem,
@@ -14,6 +16,7 @@ import type {
   OcCronJob,
   OcMemoryChunk,
   OcUpdateRelease,
+  OcWebhook,
 } from '../types.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -234,12 +237,36 @@ function WorkspaceBody({ item, scrollOffset, contentHeight, textWidth }: {
 }
 
 function McpBody({ item }: { item: OcMcpServer }) {
+  const availColor = item.available ? 'green' : (item.enabled ? 'red' : 'gray');
+  const availText = !item.enabled ? 'disabled' : item.available ? 'yes' : 'no';
   return (
     <>
       <Section title="DETAILS">
         <Field label="transport" value={item.transport} valueColor="cyan" />
-        {item.url && <Field label="url" value={item.url} />}
+        <Field label="enabled"   value={item.enabled ? 'yes' : 'no'} valueColor={item.enabled ? 'green' : 'gray'} />
+        <Field label="available" value={availText} valueColor={availColor} />
+        {item.url     && <Field label="url"     value={item.url} />}
+        {item.command && <Field label="command" value={[item.command, ...(item.args ?? [])].join(' ')} valueColor="cyan" />}
       </Section>
+      {item.dependencies.length > 0 && (
+        <Section title="DEPENDENCIES">
+          {item.dependencies.map(dep => (
+            <Field
+              key={dep.name}
+              label={dep.met ? '✓' : '✗'}
+              value={dep.name}
+              valueColor={dep.met ? 'green' : 'red'}
+            />
+          ))}
+        </Section>
+      )}
+      {item.headers && Object.keys(item.headers).length > 0 && (
+        <Section title="HEADERS">
+          {Object.entries(item.headers).map(([k, v]) => (
+            <Field key={k} label={k} value={v.slice(0, 8) + '••••••••'} />
+          ))}
+        </Section>
+      )}
     </>
   );
 }
@@ -304,9 +331,18 @@ function MemoryBody({ item, scrollOffset, contentHeight, textWidth }: {
   return <ScrollableText lines={lines} scrollOffset={scrollOffset} contentHeight={contentHeight} />;
 }
 
-function UpdateBody({ item, scrollOffset, contentHeight, textWidth }: {
-  item: OcUpdateRelease; scrollOffset: number; contentHeight: number; textWidth: number;
+function UpdateBody({ item, scrollOffset, contentHeight, textWidth, fetchedChanges, fetchedFixes, fetchState }: {
+  item: OcUpdateRelease;
+  scrollOffset: number;
+  contentHeight: number;
+  textWidth: number;
+  fetchedChanges: string[];
+  fetchedFixes: string[];
+  fetchState: 'idle' | 'fetching' | 'done' | 'error';
 }) {
+  const changes = item.changes.length > 0 ? item.changes : fetchedChanges;
+  const fixes   = item.fixes.length   > 0 ? item.fixes   : fetchedFixes;
+
   const lines = useMemo(() => {
     const result: string[] = [];
 
@@ -331,33 +367,64 @@ function UpdateBody({ item, scrollOffset, contentHeight, textWidth }: {
     result.push('');
     result.push('─'.repeat(textWidth));
 
-    if (item.changes.length === 0 && item.fixes.length === 0) {
+    if (fetchState === 'fetching') {
       result.push('');
-      result.push('(no changelog entry in local package)');
+      result.push('Fetching changelog from GitHub…');
+    } else if (fetchState === 'error') {
       result.push('');
-      result.push('Run `oc-updates preview` to fetch from GitHub.');
+      result.push('(could not fetch changelog from GitHub)');
+    } else if (changes.length === 0 && fixes.length === 0) {
+      result.push('');
+      result.push('(no changelog entry available)');
     } else {
-      if (item.changes.length > 0) {
+      if (changes.length > 0) {
         result.push('');
         result.push('### Changes');
         result.push('');
-        for (const c of item.changes) {
+        for (const c of changes) {
           result.push(...wrapText(`• ${c}`, textWidth - 2).map((l, i) => (i === 0 ? l : `  ${l}`)));
         }
       }
-      if (item.fixes.length > 0) {
+      if (fixes.length > 0) {
         result.push('');
         result.push('### Fixes');
         result.push('');
-        for (const f of item.fixes) {
+        for (const f of fixes) {
           result.push(...wrapText(`• ${f}`, textWidth - 2).map((l, i) => (i === 0 ? l : `  ${l}`)));
         }
       }
     }
     return result;
-  }, [item, textWidth]);
+  }, [item, textWidth, changes, fixes, fetchState]);
 
   return <ScrollableText lines={lines} scrollOffset={scrollOffset} contentHeight={contentHeight} />;
+}
+
+function WebhookBody({ item }: { item: OcWebhook }) {
+  return (
+    <>
+      {item.description && (
+        <Box paddingX={2} marginTop={1}>
+          <Text wrap="wrap" color="white">{item.description}</Text>
+        </Box>
+      )}
+      <Section title="STATUS">
+        <Field
+          label="enabled"
+          value={item.enabled ? 'yes' : 'no'}
+          valueColor={item.enabled ? 'green' : 'yellow'}
+        />
+      </Section>
+      <Section title="ROUTING">
+        <Field label="path"         value={item.path} valueColor="cyan" />
+        <Field label="sessionKey"   value={item.sessionKey} />
+        <Field label="controllerId" value={item.controllerId} />
+      </Section>
+      <Section title="AUTH">
+        <Field label="secret" value={item.secret} valueColor="gray" />
+      </Section>
+    </>
+  );
 }
 
 // ─── Kind metadata ────────────────────────────────────────────────────────────
@@ -373,6 +440,7 @@ function kindMeta(item: AnyItem): { label: string; color: string } {
     case 'cron':      return { label: 'cron',       color: 'red' };
     case 'memory':    return { label: 'memory',     color: 'magenta' };
     case 'update':    return { label: 'release',    color: 'cyan' };
+    case 'webhook':   return { label: 'webhook',    color: 'blue' };
   }
 }
 
@@ -387,9 +455,44 @@ interface Props {
   onClose: () => void;
 }
 
+function getChangelogUrl(): string {
+  try {
+    const pkgPath = execSync('npm root -g 2>/dev/null', { encoding: 'utf-8', timeout: 2000 }).trim()
+      + '/openclaw/package.json';
+    const { repository } = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    const repoUrl: string = (repository?.url ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
+    if (repoUrl.includes('github.com')) {
+      const parts = repoUrl.replace('https://github.com/', '').split('/');
+      return `https://raw.githubusercontent.com/${parts[0]}/${parts[1]}/main/CHANGELOG.md`;
+    }
+  } catch { /* fall through */ }
+  return 'https://raw.githubusercontent.com/openclaw/openclaw/main/CHANGELOG.md';
+}
+
 export function DetailModal({ item, onClose }: Props) {
   const { cols, rows } = useTerminalSize();
   const [scrollOffset, setScrollOffset] = useState(0);
+
+  const [fetchState, setFetchState]       = useState<'idle' | 'fetching' | 'done' | 'error'>('idle');
+  const [fetchedChanges, setFetchedChanges] = useState<string[]>([]);
+  const [fetchedFixes,   setFetchedFixes]   = useState<string[]>([]);
+
+  useEffect(() => {
+    if (item.kind !== 'update') return;
+    if (item.changes.length > 0 || item.fixes.length > 0) return;
+    setFetchState('fetching');
+    const url = getChangelogUrl();
+    fetch(url)
+      .then(r => r.text())
+      .then(text => {
+        const parsed = parseChangelog(text);
+        const entry = parsed.get(item.version) ?? { changes: [], fixes: [] };
+        setFetchedChanges(entry.changes.map(stripPrs));
+        setFetchedFixes(entry.fixes.map(stripPrs));
+        setFetchState('done');
+      })
+      .catch(() => setFetchState('error'));
+  }, [item.kind, item.kind === 'update' ? (item as OcUpdateRelease).version : '']);
 
   const modalWidth = Math.min(cols, 90);
   // padding(2) each side
@@ -411,12 +514,14 @@ export function DetailModal({ item, onClose }: Props) {
     }
     if (item.kind === 'update') {
       const u = item as OcUpdateRelease;
-      const bodyLines = [...u.changes, ...u.fixes].reduce((acc, line) =>
+      const changes = u.changes.length > 0 ? u.changes : fetchedChanges;
+      const fixes   = u.fixes.length   > 0 ? u.fixes   : fetchedFixes;
+      const bodyLines = [...changes, ...fixes].reduce((acc, line) =>
         acc + wrapText(`• ${line}`, textWidth - 2).length, 0);
       return 10 + bodyLines;
     }
     return 0;
-  }, [item, textWidth]);
+  }, [item, textWidth, fetchedChanges, fetchedFixes]);
 
   const maxOffset = Math.max(0, totalLines - contentHeight);
 
@@ -471,7 +576,8 @@ export function DetailModal({ item, onClose }: Props) {
         {item.kind === 'session'   && <SessionBody   item={item} />}
         {item.kind === 'cron'      && <CronBody      item={item} />}
         {item.kind === 'memory'    && <MemoryBody    item={item} scrollOffset={scrollOffset} contentHeight={contentHeight} textWidth={textWidth} />}
-        {item.kind === 'update'    && <UpdateBody    item={item as OcUpdateRelease} scrollOffset={scrollOffset} contentHeight={contentHeight} textWidth={textWidth} />}
+        {item.kind === 'update'    && <UpdateBody    item={item as OcUpdateRelease} scrollOffset={scrollOffset} contentHeight={contentHeight} textWidth={textWidth} fetchedChanges={fetchedChanges} fetchedFixes={fetchedFixes} fetchState={fetchState} />}
+        {item.kind === 'webhook'   && <WebhookBody   item={item as OcWebhook} />}
       </Box>
 
       <Divider width={modalWidth - 4} />
@@ -480,6 +586,9 @@ export function DetailModal({ item, onClose }: Props) {
       <Box paddingX={2} marginTop={1} justifyContent="space-between">
         <Box gap={3}>
           <Text color="gray"><Text color="yellow" bold>Esc</Text> close</Text>
+          {(item.kind === 'skill' || item.kind === 'workspace' || item.kind === 'memory') && (
+            <Text color="gray"><Text color="yellow" bold>o</Text> edit</Text>
+          )}
           {scrollable && <Text color="gray"><Text color="yellow" bold>j/k</Text> scroll</Text>}
           {scrollable && <Text color="gray"><Text color="yellow" bold>d/u</Text> page</Text>}
           {scrollable && <Text color="gray"><Text color="yellow" bold>g/G</Text> top/bottom</Text>}

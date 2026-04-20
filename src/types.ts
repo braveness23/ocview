@@ -1,4 +1,4 @@
-export type CategoryKind = 'skills' | 'hooks' | 'models' | 'workspace' | 'mcp' | 'sessions' | 'cron' | 'memory' | 'updates';
+export type CategoryKind = 'skills' | 'hooks' | 'models' | 'workspace' | 'mcp' | 'sessions' | 'cron' | 'memory' | 'updates' | 'webhooks';
 
 export interface ServiceStatus {
   active: 'running' | 'stopped' | 'failed' | 'unknown';
@@ -57,12 +57,23 @@ export interface OcWorkspaceFile {
   lastModified: string;
 }
 
+export interface McpDependency {
+  name: string;
+  met: boolean;
+}
+
 export interface OcMcpServer {
   kind: 'mcp';
   id: string;
   name: string;
   url?: string;
+  command?: string;
+  args?: string[];
   transport: string;
+  headers?: Record<string, string>;
+  enabled: boolean;
+  available: boolean;
+  dependencies: McpDependency[];
 }
 
 export interface OcSession {
@@ -98,6 +109,18 @@ export interface OcMemoryChunk {
   updatedAt: number;
 }
 
+export interface OcWebhook {
+  kind: 'webhook';
+  id: string;
+  name: string;
+  enabled: boolean;
+  path: string;
+  sessionKey: string;
+  secret: string;
+  controllerId: string;
+  description?: string;
+}
+
 export interface OcUpdateRelease {
   kind: 'update';
   id: string;
@@ -122,7 +145,8 @@ export type AnyItem =
   | OcSession
   | OcCronJob
   | OcMemoryChunk
-  | OcUpdateRelease;
+  | OcUpdateRelease
+  | OcWebhook;
 
 export interface Category {
   kind: CategoryKind;
@@ -140,4 +164,5 @@ export interface AppData {
   cron: OcCronJob[];
   memory: OcMemoryChunk[];
   updates: OcUpdateRelease[];
+  webhooks: OcWebhook[];
 }

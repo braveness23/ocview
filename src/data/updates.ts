@@ -9,9 +9,9 @@ const LOCAL_PKG       = join(HOME, '.npm-global/lib/node_modules/openclaw/packag
 const UPDATE_CHECK    = join(HOME, '.openclaw/update-check.json');
 const INSTALL_LOG     = join(HOME, '.openclaw/logs/update-history.json');
 
-type ChangelogEntry = { changes: string[]; fixes: string[] };
+export type ChangelogEntry = { changes: string[]; fixes: string[] };
 
-function parseChangelog(text: string): Map<string, ChangelogEntry> {
+export function parseChangelog(text: string): Map<string, ChangelogEntry> {
   const entries = new Map<string, ChangelogEntry>();
   let curVer: string | null = null;
   let curSec: 'changes' | 'fixes' | null = null;
@@ -35,7 +35,7 @@ function parseChangelog(text: string): Map<string, ChangelogEntry> {
   return entries;
 }
 
-function stripPrs(s: string): string {
+export function stripPrs(s: string): string {
   return s.replace(/\s*\(#\d+(?:,\s*#\d+)*\)/g, '');
 }
 

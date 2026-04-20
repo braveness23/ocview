@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { spawnSync } from 'child_process';
-import type { AnyItem, OcHook, OcCronJob, OcSkill } from '../types.js';
+import type { AnyItem, OcHook, OcCronJob, OcSkill, OcWebhook } from '../types.js';
 
 const OPENCLAW_JSON = join(homedir(), '.openclaw', 'openclaw.json');
 const CRON_FILE = join(homedir(), '.openclaw', 'cron', 'jobs.json');
@@ -71,6 +71,19 @@ export function toggleHook(item: OcHook): boolean {
     const entries = config?.hooks?.internal?.entries;
     if (!entries || !(item.name in entries)) return false;
     entries[item.name].enabled = !item.enabled;
+    writeFileSync(OPENCLAW_JSON, JSON.stringify(config, null, 2) + '\n');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function toggleWebhook(item: OcWebhook): boolean {
+  try {
+    const config = JSON.parse(readFileSync(OPENCLAW_JSON, 'utf-8'));
+    const routes = config?.plugins?.entries?.webhooks?.routes;
+    if (!routes || !(item.name in routes)) return false;
+    routes[item.name].enabled = !item.enabled;
     writeFileSync(OPENCLAW_JSON, JSON.stringify(config, null, 2) + '\n');
     return true;
   } catch {

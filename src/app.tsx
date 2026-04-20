@@ -11,6 +11,7 @@ import type {
   OcHook,
   OcCronJob,
   OcSkill,
+  OcWebhook,
   ServiceStatus,
 } from './types.js';
 import { Layout } from './components/Layout.js';
@@ -19,10 +20,10 @@ import { TranscriptView } from './components/TranscriptView.js';
 import { useMouseScroll } from './hooks/useMouseScroll.js';
 import { loadAll } from './data/loader.js';
 import { loadStatus } from './data/status.js';
-import { getEditableFilePath, openInEditor, toggleHook, toggleCron, createSkill, deleteSkill, deleteCronJob } from './utils/actions.js';
+import { getEditableFilePath, openInEditor, toggleHook, toggleCron, toggleWebhook, createSkill, deleteSkill, deleteCronJob } from './utils/actions.js';
 
 const CATEGORY_ORDER: CategoryKind[] = [
-  'skills', 'hooks', 'models', 'workspace', 'mcp', 'sessions', 'cron', 'memory', 'updates',
+  'skills', 'hooks', 'models', 'workspace', 'mcp', 'sessions', 'cron', 'memory', 'updates', 'webhooks',
 ];
 
 function getItemsForCategory(data: AppData, kind: CategoryKind): AnyItem[] {
@@ -36,6 +37,7 @@ function getItemsForCategory(data: AppData, kind: CategoryKind): AnyItem[] {
     case 'cron':      return data.cron;
     case 'memory':    return data.memory;
     case 'updates':   return data.updates;
+    case 'webhooks':  return data.webhooks;
   }
 }
 
@@ -164,6 +166,14 @@ export default function App({ initialData }: Props) {
     if (transcriptSession) return;
     if (modalItem) {
       if (key.escape || input === 'q') setModalItem(null);
+      else if (input === 'o') {
+        const path = getEditableFilePath(modalItem);
+        if (path) {
+          setModalItem(null);
+          openInEditor(path);
+          reload();
+        }
+      }
       return;
     }
 
@@ -269,11 +279,13 @@ export default function App({ initialData }: Props) {
           ok = toggleHook(selectedItem as OcHook);
         } else if (selectedItem.kind === 'cron') {
           ok = toggleCron(selectedItem as OcCronJob);
+        } else if (selectedItem.kind === 'webhook') {
+          ok = toggleWebhook(selectedItem as OcWebhook);
         }
         if (ok) {
           reload();
-        } else if (selectedItem.kind !== 'hook' && selectedItem.kind !== 'cron') {
-          setNotification('Toggle only works on hooks and cron jobs');
+        } else if (selectedItem.kind !== 'hook' && selectedItem.kind !== 'cron' && selectedItem.kind !== 'webhook') {
+          setNotification('Toggle only works on hooks, cron jobs, and webhooks');
         }
       } else if (key.return && selectedItem) {
         if (selectedItem.kind === 'session') {

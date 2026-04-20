@@ -8,6 +8,7 @@ import { loadSessions } from './sessions.js';
 import { loadCron } from './cron.js';
 import { loadMemory } from './memory.js';
 import { loadUpdates } from './updates.js';
+import { loadWebhooks } from './webhooks.js';
 
 export function loadAll(): AppData {
   return {
@@ -20,5 +21,6 @@ export function loadAll(): AppData {
     cron:      loadCron(),
     memory:    loadMemory(),
     updates:   loadUpdates(),
+    webhooks:  loadWebhooks(),
   };
 }
