@@ -22,7 +22,7 @@ import { loadStatus } from './data/status.js';
 import { getEditableFilePath, openInEditor, toggleHook, toggleCron, createSkill, deleteSkill, deleteCronJob } from './utils/actions.js';
 
 const CATEGORY_ORDER: CategoryKind[] = [
-  'skills', 'hooks', 'models', 'workspace', 'mcp', 'sessions', 'cron', 'memory',
+  'skills', 'hooks', 'models', 'workspace', 'mcp', 'sessions', 'cron', 'memory', 'updates',
 ];
 
 function getItemsForCategory(data: AppData, kind: CategoryKind): AnyItem[] {
@@ -35,6 +35,7 @@ function getItemsForCategory(data: AppData, kind: CategoryKind): AnyItem[] {
     case 'sessions':  return data.sessions;
     case 'cron':      return data.cron;
     case 'memory':    return data.memory;
+    case 'updates':   return data.updates;
   }
 }
 
@@ -314,6 +315,7 @@ export default function App({ initialData }: Props) {
       status={status}
       reloading={reloading}
       notification={notification}
+      updateAvailable={data.updates.find(u => u.isAvailable)?.version ?? ''}
     />
   );
 }

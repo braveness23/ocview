@@ -13,6 +13,7 @@ import type {
   OcSession,
   OcCronJob,
   OcMemoryChunk,
+  OcUpdateRelease,
 } from '../types.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -303,6 +304,62 @@ function MemoryBody({ item, scrollOffset, contentHeight, textWidth }: {
   return <ScrollableText lines={lines} scrollOffset={scrollOffset} contentHeight={contentHeight} />;
 }
 
+function UpdateBody({ item, scrollOffset, contentHeight, textWidth }: {
+  item: OcUpdateRelease; scrollOffset: number; contentHeight: number; textWidth: number;
+}) {
+  const lines = useMemo(() => {
+    const result: string[] = [];
+
+    const statusParts: string[] = [];
+    if (item.isInstalled) statusParts.push('● installed');
+    if (item.isAvailable) statusParts.push('↑ available');
+    if (item.isLatest)    statusParts.push('latest');
+
+    result.push(`version:  ${item.version}`);
+    if (statusParts.length > 0) result.push(`status:   ${statusParts.join('  ')}`);
+    if (item.installRecord) {
+      const ts = item.installRecord.timestamp;
+      let dt = ts;
+      try { dt = new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { /* ignore */ }
+      result.push(`installed: ${dt}  (from ${item.installRecord.from})`);
+    }
+    if (item.lastCheckedAt && item.isInstalled) {
+      let dt = item.lastCheckedAt;
+      try { dt = new Date(item.lastCheckedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { /* ignore */ }
+      result.push(`checked:  ${dt}`);
+    }
+    result.push('');
+    result.push('─'.repeat(textWidth));
+
+    if (item.changes.length === 0 && item.fixes.length === 0) {
+      result.push('');
+      result.push('(no changelog entry in local package)');
+      result.push('');
+      result.push('Run `oc-updates preview` to fetch from GitHub.');
+    } else {
+      if (item.changes.length > 0) {
+        result.push('');
+        result.push('### Changes');
+        result.push('');
+        for (const c of item.changes) {
+          result.push(...wrapText(`• ${c}`, textWidth - 2).map((l, i) => (i === 0 ? l : `  ${l}`)));
+        }
+      }
+      if (item.fixes.length > 0) {
+        result.push('');
+        result.push('### Fixes');
+        result.push('');
+        for (const f of item.fixes) {
+          result.push(...wrapText(`• ${f}`, textWidth - 2).map((l, i) => (i === 0 ? l : `  ${l}`)));
+        }
+      }
+    }
+    return result;
+  }, [item, textWidth]);
+
+  return <ScrollableText lines={lines} scrollOffset={scrollOffset} contentHeight={contentHeight} />;
+}
+
 // ─── Kind metadata ────────────────────────────────────────────────────────────
 
 function kindMeta(item: AnyItem): { label: string; color: string } {
@@ -315,11 +372,12 @@ function kindMeta(item: AnyItem): { label: string; color: string } {
     case 'session':   return { label: 'session',    color: 'white' };
     case 'cron':      return { label: 'cron',       color: 'red' };
     case 'memory':    return { label: 'memory',     color: 'magenta' };
+    case 'update':    return { label: 'release',    color: 'cyan' };
   }
 }
 
 function isScrollableKind(kind: string): boolean {
-  return kind === 'skill' || kind === 'workspace' || kind === 'memory';
+  return kind === 'skill' || kind === 'workspace' || kind === 'memory' || kind === 'update';
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -350,6 +408,12 @@ export function DetailModal({ item, onClose }: Props) {
     }
     if (item.kind === 'memory') {
       return (8 + wrapText(item.text, textWidth).length);
+    }
+    if (item.kind === 'update') {
+      const u = item as OcUpdateRelease;
+      const bodyLines = [...u.changes, ...u.fixes].reduce((acc, line) =>
+        acc + wrapText(`• ${line}`, textWidth - 2).length, 0);
+      return 10 + bodyLines;
     }
     return 0;
   }, [item, textWidth]);
@@ -407,6 +471,7 @@ export function DetailModal({ item, onClose }: Props) {
         {item.kind === 'session'   && <SessionBody   item={item} />}
         {item.kind === 'cron'      && <CronBody      item={item} />}
         {item.kind === 'memory'    && <MemoryBody    item={item} scrollOffset={scrollOffset} contentHeight={contentHeight} textWidth={textWidth} />}
+        {item.kind === 'update'    && <UpdateBody    item={item as OcUpdateRelease} scrollOffset={scrollOffset} contentHeight={contentHeight} textWidth={textWidth} />}
       </Box>
 
       <Divider width={modalWidth - 4} />

@@ -1,4 +1,4 @@
-export type CategoryKind = 'skills' | 'hooks' | 'models' | 'workspace' | 'mcp' | 'sessions' | 'cron' | 'memory';
+export type CategoryKind = 'skills' | 'hooks' | 'models' | 'workspace' | 'mcp' | 'sessions' | 'cron' | 'memory' | 'updates';
 
 export interface ServiceStatus {
   active: 'running' | 'stopped' | 'failed' | 'unknown';
@@ -98,6 +98,21 @@ export interface OcMemoryChunk {
   updatedAt: number;
 }
 
+export interface OcUpdateRelease {
+  kind: 'update';
+  id: string;
+  name: string;
+  version: string;
+  isInstalled: boolean;
+  isLatest: boolean;
+  isAvailable: boolean;
+  lastCheckedAt: string;
+  changeCount: number;
+  changes: string[];
+  fixes: string[];
+  installRecord?: { from: string; to: string; timestamp: string };
+}
+
 export type AnyItem =
   | OcSkill
   | OcHook
@@ -106,7 +121,8 @@ export type AnyItem =
   | OcMcpServer
   | OcSession
   | OcCronJob
-  | OcMemoryChunk;
+  | OcMemoryChunk
+  | OcUpdateRelease;
 
 export interface Category {
   kind: CategoryKind;
@@ -123,4 +139,5 @@ export interface AppData {
   sessions: OcSession[];
   cron: OcCronJob[];
   memory: OcMemoryChunk[];
+  updates: OcUpdateRelease[];
 }

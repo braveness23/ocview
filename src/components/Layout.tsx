@@ -27,12 +27,14 @@ interface Props {
   status: ServiceStatus | null;
   reloading: boolean;
   notification: string | null;
+  updateAvailable: string;
 }
 
-function ServiceLine({ status, reloading, notification }: {
+function ServiceLine({ status, reloading, notification, updateAvailable }: {
   status: ServiceStatus | null;
   reloading: boolean;
   notification: string | null;
+  updateAvailable: string;
 }) {
   if (notification) {
     return (
@@ -69,6 +71,9 @@ function ServiceLine({ status, reloading, notification }: {
         <Text color={socketColor}>socket: {status.socketHealth}</Text>
       )}
       {status.version && <Text color="gray" dimColor>v{status.version}</Text>}
+      {updateAvailable && (
+        <Text color="yellow">⬆ {updateAvailable} available</Text>
+      )}
     </Box>
   );
 }
@@ -94,6 +99,7 @@ export function Layout({
   status,
   reloading,
   notification,
+  updateAvailable,
 }: Props) {
   const { cols, rows } = useTerminalSize();
 
@@ -119,7 +125,7 @@ export function Layout({
       </Box>
 
       {/* Service status / notification */}
-      <ServiceLine status={status} reloading={reloading} notification={notification} />
+      <ServiceLine status={status} reloading={reloading} notification={notification} updateAvailable={updateAvailable} />
 
       {/* Panels */}
       <Box flexDirection="row" height={panelHeight}>

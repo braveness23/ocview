@@ -7,6 +7,7 @@ import { loadMcp } from './mcp.js';
 import { loadSessions } from './sessions.js';
 import { loadCron } from './cron.js';
 import { loadMemory } from './memory.js';
+import { loadUpdates } from './updates.js';
 
 export function loadAll(): AppData {
   return {
@@ -18,5 +19,6 @@ export function loadAll(): AppData {
     sessions:  loadSessions(),
     cron:      loadCron(),
     memory:    loadMemory(),
+    updates:   loadUpdates(),
   };
 }

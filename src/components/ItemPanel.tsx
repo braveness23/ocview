@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
-import type { AnyItem, CategoryKind, OcSkill, OcMemoryChunk } from '../types.js';
+import type { AnyItem, CategoryKind, OcSkill, OcMemoryChunk, OcUpdateRelease } from '../types.js';
 import { ScopeBadge } from './ScopeBadge.js';
 import { SearchBar } from './SearchBar.js';
 
@@ -32,6 +32,7 @@ const CATEGORY_LABELS: Record<CategoryKind, string> = {
   sessions:  'SESSIONS',
   cron:      'CRON JOBS',
   memory:    'MEMORY CHUNKS',
+  updates:   'RELEASES',
 };
 
 export function ItemPanel({
@@ -109,8 +110,9 @@ export function ItemPanel({
         const isSelected = realIdx === selectedIndex;
         const name = item.name ?? item.id;
         const displayName = name.length > 30 ? name.slice(0, 28) + '..' : name;
-        const isSkill = item.kind === 'skill';
+        const isSkill  = item.kind === 'skill';
         const isMemory = item.kind === 'memory';
+        const isUpdate = item.kind === 'update';
 
         return (
           <Box key={`${item.id}-${realIdx}`}>
@@ -132,6 +134,26 @@ export function ItemPanel({
                 {' '}{(item as OcMemoryChunk).text.slice(0, 40).replace(/\s+/g, ' ')}
               </Text>
             )}
+            {isUpdate && (() => {
+              const u = item as OcUpdateRelease;
+              const badge = u.isInstalled ? 'installed' : u.isAvailable ? 'available' : '';
+              const badgeColor = u.isInstalled ? 'green' : u.isAvailable ? 'yellow' : 'gray';
+              const counts = u.changeCount > 0 ? ` ${u.changes.length}c ${u.fixes.length}f` : '';
+              return (
+                <Box>
+                  {badge !== '' && (
+                    <Text color={isSelected ? 'black' : badgeColor as any} backgroundColor={isSelected ? 'cyan' : undefined}>
+                      {' '}[{badge}]
+                    </Text>
+                  )}
+                  {counts !== '' && (
+                    <Text color={isSelected ? 'black' : 'gray'} backgroundColor={isSelected ? 'cyan' : undefined}>
+                      {counts}
+                    </Text>
+                  )}
+                </Box>
+              );
+            })()}
           </Box>
         );
       })}

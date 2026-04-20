@@ -18,6 +18,7 @@ const LABELS: Record<string, string> = {
   sessions:  'Sessions',
   cron:      'Cron',
   memory:    'Memory',
+  updates:   'Updates',
 };
 
 export function CategoryPanel({ categories, selectedIndex, active, height }: Props) {
