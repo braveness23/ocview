@@ -272,13 +272,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			moveCursor(m.transcriptCursor + 1)
 		case "k", "up":
 			moveCursor(m.transcriptCursor - 1)
-		case "d":
+		case "pgdown", "d":
 			moveCursor(m.transcriptCursor + contentH/2)
-		case "u":
+		case "pgup", "u":
 			moveCursor(m.transcriptCursor - contentH/2)
-		case "g":
+		case "home", "g":
 			moveCursor(0)
-		case "G":
+		case "end", "G":
 			moveCursor(total - 1)
 		case "enter":
 			if m.transcriptCursor < len(lines) {
@@ -327,13 +327,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.modalScroll = clamp(m.modalScroll+1, 0, maxOffset)
 		case "k", "up":
 			m.modalScroll = clamp(m.modalScroll-1, 0, maxOffset)
-		case "d":
+		case "pgdown", "d":
 			m.modalScroll = clamp(m.modalScroll+contentH/2, 0, maxOffset)
-		case "u":
+		case "pgup", "u":
 			m.modalScroll = clamp(m.modalScroll-contentH/2, 0, maxOffset)
-		case "g":
+		case "home", "g":
 			m.modalScroll = 0
-		case "G":
+		case "end", "G":
 			m.modalScroll = maxOffset
 		}
 		return m, nil
@@ -444,7 +444,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.catIdx = clamp(m.catIdx-1, 0, len(categoryOrder)-1)
 			m.itemIdx = 0
 			m.searchQuery = ""
-		case "enter", "l", "right", "tab":
+		case "enter", "right", "tab":
 			// go deeper into items
 			m.panel = panelItems
 		}
@@ -453,7 +453,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// ── Items panel ───────────────────────────────────────────────────────────
 	switch key {
-	case "h", "left", "esc":
+	case "left", "esc":
 		// go back to categories
 		m.panel = panelCategories
 		m.searchActive = false
@@ -537,7 +537,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, loadDataCmd()
 			}
 		}
-	case "enter", "l", "right":
+	case "enter", "right":
 		if m.itemIdx < len(items) {
 			item := items[m.itemIdx]
 			if sess, ok := item.(data.OcSession); ok {
@@ -912,24 +912,24 @@ func (m Model) renderStatusBar() string {
 	var parts []string
 	if m.panel == panelCategories {
 		parts = []string{
-			k("j/k", "nav"),
-			k("↵/l/→", "open"),
+			k("↑↓", "nav"),
+			k("↵/→/Tab", "open"),
 			k("r", "reload"),
 			k("q", "quit"),
 		}
 	} else {
 		parts = []string{
-			k("j/k", "nav"),
-			k("h/←/Esc", "back"),
+			k("↑↓", "nav"),
+			k("←/Esc", "back"),
 			k("/", "search"),
 		}
 		if categoryOrder[m.catIdx] == "skills" {
 			parts = append(parts, k("s", "scope"), k("n", "new"))
 		}
 		if isSession {
-			parts = append(parts, k("↵/l", "transcript"))
+			parts = append(parts, k("↵/→", "transcript"))
 		} else {
-			parts = append(parts, k("↵/l", "detail"))
+			parts = append(parts, k("↵/→", "detail"))
 		}
 		if canEdit {
 			parts = append(parts, k("o", "edit"))

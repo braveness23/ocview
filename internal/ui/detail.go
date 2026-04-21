@@ -469,7 +469,7 @@ func buildDetailFooter(item data.AnyItem, scrollable bool) string {
 		keys = append(keys, y("o", "edit"))
 	}
 	if scrollable {
-		keys = append(keys, y("j/k", "scroll"), y("d/u", "page"), y("g/G", "top/btm"))
+		keys = append(keys, y("↑↓", "scroll"), y("PgDn/PgUp", "page"), y("Home/End", "top/btm"))
 	}
 	return strings.Join(keys, "   ")
 }
