@@ -779,17 +779,12 @@ func (m Model) renderItemPanel(height, visibleCount int) string {
 		switch v := item.(type) {
 		case data.OcSkill:
 			scopeColor := colorCyan
-			scopeText := "built-in"
+			scopeText := "[built-in]"
 			if v.Scope == "installed" {
 				scopeColor = colorGreen
-				scopeText = "installed"
+				scopeText = "[installed]"
 			}
-			extra = " " + lipgloss.NewStyle().
-				Border(lipgloss.NormalBorder()).
-				BorderForeground(scopeColor).
-				Foreground(scopeColor).
-				PaddingLeft(1).PaddingRight(1).
-				Render(scopeText)
+			extra = " " + lipgloss.NewStyle().Foreground(scopeColor).Render(scopeText)
 		case data.OcMemoryChunk:
 			preview := strings.ReplaceAll(v.Text, "\n", " ")
 			if len([]rune(preview)) > 40 {
