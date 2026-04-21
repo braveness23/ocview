@@ -1,82 +1,76 @@
-# ccview
+# ocview
 
-Terminal UI for browsing all Claude Code tools installed on your system — skills, agents, commands, hooks, plugins, marketplaces, and rules — without opening a Claude session.
+Terminal UI for browsing [OpenClaw](https://github.com/openclaw/openclaw) state — skills, hooks, models, sessions, cron jobs, memory, webhooks, and more.
 
 ![](images/view.png)
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  ccview — Claude Code Browser                           [all scopes]    │
-├──────────────────┬──────────────────────────────────────────────────────┤
-│  CATEGORIES      │  SKILLS (32)                                          │
-│                  │                                                        │
-│ ▶ Skills      32 │  ios-developer          [global] [compound-eng]       │
-│   Agents      14 │  swift-concurrency-pro  [global]                      │
-│   Commands     3 │  agent-browser          [global]                      │
-│   Hooks        2 │  ▶ swiftui-pro          [global]                      │
-│   Plugins     19 │  typescript-pro         [global]                      │
-│   Marketplaces 7 │                                                        │
-│   Rules        2 │                                                        │
-├──────────────────┴──────────────────────────────────────────────────────┤
-│  swiftui-pro  [global]                                                   │
-│  ─────────────────────────────────────────────────────────────────────  │
-│  Comprehensive SwiftUI code review for best practices.                  │
-│  license: MIT  ·  path: ~/.claude/skills/swiftui-pro/SKILL.md          │
-├──────────────────────────────────────────────────────────────────────────┤
-│  Tab:switch panel  j/k:navigate  /:search  g:scope  q:quit             │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+## Build
 
-## Install
+Requires Go 1.22+.
 
 ```bash
-npm install -g @onmyway133/ccview
+git clone https://github.com/braveness23/ocview
+cd ocview
+go build -o ocview-go .
 ```
 
-Or run without installing:
+Or just run directly:
 
 ```bash
-bunx @onmyway133/ccview
-npx @onmyway133/ccview
+go run .
 ```
 
 ## Usage
 
 ```bash
-# Run from inside your project — picks up project tools automatically
-cd your-project
-ccview
-
-# Or point at a specific project
-ccview --project /path/to/project
+./ocview-go
 ```
 
-Requires [Bun](https://bun.sh) and Claude Code installed (`~/.claude/`).
-
-`ccview` always shows global tools from `~/.claude/`. If the current directory (or `--project` path) contains a `.claude/` folder or `CLAUDE.md`, project-scoped tools are shown alongside them.
+Reads live state from `~/.openclaw/`. No arguments needed.
 
 ## Key Bindings
 
+### Main view
+
 | Key | Action |
 |-----|--------|
-| `Tab` | Switch focus between category and item panels |
-| `j` / `↓` | Move selection down |
-| `k` / `↑` | Move selection up |
+| `↑` / `↓` | Navigate |
+| `→` / `Enter` / `Tab` | Open items / open detail |
+| `←` / `Esc` | Back |
 | `/` | Search / filter |
-| `Esc` | Cancel search |
-| `g` | Cycle scope: all → global → project → all |
-| `Enter` | Jump to items panel from categories |
+| `s` | Cycle scope filter (Skills category) |
+| `n` | New skill (Skills category) |
+| `o` | Open in `$EDITOR` |
+| `t` | Toggle enabled (hooks, cron, webhooks) |
+| `d` | Delete (installed skills, cron jobs) |
+| `r` | Reload all data |
 | `q` / `Ctrl+C` | Quit |
 
-## What It Shows
+### Detail / Transcript
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Scroll line |
+| `PgDn` / `PgUp` | Scroll half-page |
+| `Home` / `End` | Top / bottom |
+| `Enter` | Expand/collapse tool call (transcript) |
+| `o` | Open in `$EDITOR` |
+| `q` / `Esc` | Close |
+
+Vim aliases `j/k`, `g/G`, `d/u` also work everywhere.
+
+## Categories
 
 | Category | Source |
 |----------|--------|
-| **Skills** | `~/.claude/skills/` + plugin install paths |
-| **Agents** | `~/.claude/agents/` + plugin install paths |
-| **Commands** | `~/.claude/commands/` + plugin install paths |
-| **Hooks** | `~/.claude/settings.json` → `hooks` section |
-| **Plugins** | `~/.claude/plugins/installed_plugins.json` |
-| **Marketplaces** | `~/.claude/plugins/known_marketplaces.json` |
-| **Rules** | `CLAUDE.md` files (global + project) |
-
+| Skills | `~/.openclaw/skills/` + npm global built-ins |
+| Hooks | `~/.openclaw/openclaw.json` → `hooks.internal` |
+| Models | `~/.openclaw/openclaw.json` → `models.providers` |
+| Workspace | `~/.openclaw/workspace/*.md` |
+| MCP | `~/.openclaw/openclaw.json` → `mcp.servers` |
+| Sessions | `~/.openclaw/agents/main/sessions/*.jsonl` |
+| Cron | `~/.openclaw/cron/jobs.json` |
+| Memory | `~/.openclaw/memory/main.sqlite` |
+| Updates | `CHANGELOG.md` + `update-check.json` |
+| Webhooks | `~/.openclaw/openclaw.json` → `plugins.entries.webhooks` |
+| Audit Log | `~/.openclaw/logs/config-audit.jsonl` |
