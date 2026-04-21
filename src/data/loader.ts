@@ -9,6 +9,7 @@ import { loadCron } from './cron.js';
 import { loadMemory } from './memory.js';
 import { loadUpdates } from './updates.js';
 import { loadWebhooks } from './webhooks.js';
+import { loadAuditLog } from './auditlog.js';
 
 export function loadAll(): AppData {
   return {
@@ -22,5 +23,6 @@ export function loadAll(): AppData {
     memory:    loadMemory(),
     updates:   loadUpdates(),
     webhooks:  loadWebhooks(),
+    auditlog:  loadAuditLog(),
   };
 }

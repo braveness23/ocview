@@ -23,7 +23,7 @@ import { loadStatus } from './data/status.js';
 import { getEditableFilePath, openInEditor, toggleHook, toggleCron, toggleWebhook, createSkill, deleteSkill, deleteCronJob } from './utils/actions.js';
 
 const CATEGORY_ORDER: CategoryKind[] = [
-  'skills', 'hooks', 'models', 'workspace', 'mcp', 'sessions', 'cron', 'memory', 'updates', 'webhooks',
+  'skills', 'hooks', 'models', 'workspace', 'mcp', 'sessions', 'cron', 'memory', 'updates', 'webhooks', 'auditlog',
 ];
 
 function getItemsForCategory(data: AppData, kind: CategoryKind): AnyItem[] {
@@ -38,6 +38,7 @@ function getItemsForCategory(data: AppData, kind: CategoryKind): AnyItem[] {
     case 'memory':    return data.memory;
     case 'updates':   return data.updates;
     case 'webhooks':  return data.webhooks;
+    case 'auditlog':  return data.auditlog;
   }
 }
 

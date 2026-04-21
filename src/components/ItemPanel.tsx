@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
-import type { AnyItem, CategoryKind, OcSkill, OcMemoryChunk, OcUpdateRelease } from '../types.js';
+import type { AnyItem, CategoryKind, OcSkill, OcMemoryChunk, OcUpdateRelease, OcAuditEntry } from '../types.js';
 import { ScopeBadge } from './ScopeBadge.js';
 import { SearchBar } from './SearchBar.js';
 
@@ -33,6 +33,8 @@ const CATEGORY_LABELS: Record<CategoryKind, string> = {
   cron:      'CRON JOBS',
   memory:    'MEMORY CHUNKS',
   updates:   'RELEASES',
+  webhooks:  'WEBHOOKS',
+  auditlog:  'CONFIG AUDIT LOG',
 };
 
 export function ItemPanel({
@@ -110,9 +112,10 @@ export function ItemPanel({
         const isSelected = realIdx === selectedIndex;
         const name = item.name ?? item.id;
         const displayName = name.length > 30 ? name.slice(0, 28) + '..' : name;
-        const isSkill  = item.kind === 'skill';
-        const isMemory = item.kind === 'memory';
-        const isUpdate = item.kind === 'update';
+        const isSkill    = item.kind === 'skill';
+        const isMemory   = item.kind === 'memory';
+        const isUpdate   = item.kind === 'update';
+        const isAuditLog = item.kind === 'auditlog';
 
         return (
           <Box key={`${item.id}-${realIdx}`}>
@@ -134,6 +137,17 @@ export function ItemPanel({
                 {' '}{(item as OcMemoryChunk).text.slice(0, 40).replace(/\s+/g, ' ')}
               </Text>
             )}
+            {isAuditLog && (() => {
+              const a = item as OcAuditEntry;
+              const d = new Date(a.ts);
+              const ts = d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+              const hasSuspicious = a.suspicious.length > 0;
+              return (
+                <Text color={isSelected ? 'black' : hasSuspicious ? 'red' : 'gray'} backgroundColor={isSelected ? 'cyan' : undefined}>
+                  {'  '}{ts}{hasSuspicious ? '  ⚠' : ''}
+                </Text>
+              );
+            })()}
             {isUpdate && (() => {
               const u = item as OcUpdateRelease;
               const badge = u.isInstalled ? 'installed' : u.isAvailable ? 'available' : '';

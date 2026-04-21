@@ -1,4 +1,4 @@
-export type CategoryKind = 'skills' | 'hooks' | 'models' | 'workspace' | 'mcp' | 'sessions' | 'cron' | 'memory' | 'updates' | 'webhooks';
+export type CategoryKind = 'skills' | 'hooks' | 'models' | 'workspace' | 'mcp' | 'sessions' | 'cron' | 'memory' | 'updates' | 'webhooks' | 'auditlog';
 
 export interface ServiceStatus {
   active: 'running' | 'stopped' | 'failed' | 'unknown';
@@ -136,6 +136,27 @@ export interface OcUpdateRelease {
   installRecord?: { from: string; to: string; timestamp: string };
 }
 
+export interface OcAuditEntry {
+  kind: 'auditlog';
+  id: string;
+  name: string;
+  ts: string;
+  event: string;
+  source: string;
+  configPath: string;
+  command: string;
+  argv: string[];
+  pid: number;
+  result: string;
+  suspicious: string[];
+  previousBytes: number | null;
+  nextBytes: number;
+  previousHash: string;
+  nextHash: string;
+  gatewayModeBefore: string | null;
+  gatewayModeAfter: string | null;
+}
+
 export type AnyItem =
   | OcSkill
   | OcHook
@@ -146,7 +167,8 @@ export type AnyItem =
   | OcCronJob
   | OcMemoryChunk
   | OcUpdateRelease
-  | OcWebhook;
+  | OcWebhook
+  | OcAuditEntry;
 
 export interface Category {
   kind: CategoryKind;
@@ -165,4 +187,5 @@ export interface AppData {
   memory: OcMemoryChunk[];
   updates: OcUpdateRelease[];
   webhooks: OcWebhook[];
+  auditlog: OcAuditEntry[];
 }

@@ -17,6 +17,7 @@ import type {
   OcMemoryChunk,
   OcUpdateRelease,
   OcWebhook,
+  OcAuditEntry,
 } from '../types.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -400,6 +401,60 @@ function UpdateBody({ item, scrollOffset, contentHeight, textWidth, fetchedChang
   return <ScrollableText lines={lines} scrollOffset={scrollOffset} contentHeight={contentHeight} />;
 }
 
+function AuditBody({ item, scrollOffset, contentHeight, textWidth }: {
+  item: OcAuditEntry; scrollOffset: number; contentHeight: number; textWidth: number;
+}) {
+  const lines = useMemo(() => {
+    const d = new Date(item.ts);
+    const ts = d.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    });
+
+    const result: string[] = [
+      `time:      ${ts}`,
+      `event:     ${item.event}`,
+      `source:    ${item.source}`,
+      `result:    ${item.result}`,
+      `pid:       ${item.pid}`,
+      '',
+      '─'.repeat(textWidth),
+      '',
+      '### Config file',
+      '',
+      `path:      ${item.configPath}`,
+      `size:      ${item.previousBytes ?? '(new)'} → ${item.nextBytes} bytes`,
+      `hash:      ${item.previousHash.slice(0, 16)}… → ${item.nextHash.slice(0, 16)}…`,
+    ];
+
+    if (item.gatewayModeBefore !== null || item.gatewayModeAfter !== null) {
+      result.push(`mode:      ${item.gatewayModeBefore ?? '(none)'} → ${item.gatewayModeAfter ?? '(none)'}`);
+    }
+
+    result.push('');
+    result.push('─'.repeat(textWidth));
+    result.push('');
+    result.push('### Command');
+    result.push('');
+    result.push(...wrapText(item.argv.join(' '), textWidth));
+
+    if (item.suspicious.length > 0) {
+      result.push('');
+      result.push('─'.repeat(textWidth));
+      result.push('');
+      result.push('### ⚠ Suspicious activity');
+      result.push('');
+      for (const s of item.suspicious) {
+        result.push(`• ${s}`);
+      }
+    }
+
+    return result;
+  }, [item, textWidth]);
+
+  return <ScrollableText lines={lines} scrollOffset={scrollOffset} contentHeight={contentHeight} />;
+}
+
 function WebhookBody({ item }: { item: OcWebhook }) {
   return (
     <>
@@ -441,11 +496,12 @@ function kindMeta(item: AnyItem): { label: string; color: string } {
     case 'memory':    return { label: 'memory',     color: 'magenta' };
     case 'update':    return { label: 'release',    color: 'cyan' };
     case 'webhook':   return { label: 'webhook',    color: 'blue' };
+    case 'auditlog':  return { label: 'audit',      color: 'yellow' };
   }
 }
 
 function isScrollableKind(kind: string): boolean {
-  return kind === 'skill' || kind === 'workspace' || kind === 'memory' || kind === 'update';
+  return kind === 'skill' || kind === 'workspace' || kind === 'memory' || kind === 'update' || kind === 'auditlog';
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -520,6 +576,10 @@ export function DetailModal({ item, onClose }: Props) {
         acc + wrapText(`• ${line}`, textWidth - 2).length, 0);
       return 10 + bodyLines;
     }
+    if (item.kind === 'auditlog') {
+      const a = item as OcAuditEntry;
+      return 14 + wrapText(a.argv.join(' '), textWidth).length + a.suspicious.length;
+    }
     return 0;
   }, [item, textWidth, fetchedChanges, fetchedFixes]);
 
@@ -578,6 +638,7 @@ export function DetailModal({ item, onClose }: Props) {
         {item.kind === 'memory'    && <MemoryBody    item={item} scrollOffset={scrollOffset} contentHeight={contentHeight} textWidth={textWidth} />}
         {item.kind === 'update'    && <UpdateBody    item={item as OcUpdateRelease} scrollOffset={scrollOffset} contentHeight={contentHeight} textWidth={textWidth} fetchedChanges={fetchedChanges} fetchedFixes={fetchedFixes} fetchState={fetchState} />}
         {item.kind === 'webhook'   && <WebhookBody   item={item as OcWebhook} />}
+        {item.kind === 'auditlog'  && <AuditBody     item={item as OcAuditEntry} scrollOffset={scrollOffset} contentHeight={contentHeight} textWidth={textWidth} />}
       </Box>
 
       <Divider width={modalWidth - 4} />
