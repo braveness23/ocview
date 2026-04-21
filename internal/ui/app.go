@@ -401,7 +401,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Search active
+	// Search active — handle before the h/esc panel-back so Esc cancels search first
 	if m.searchActive {
 		switch key {
 		case "esc":
@@ -424,22 +424,43 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Global keys
+	// Global keys (work in both panels)
 	switch key {
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	case "r":
 		m.reloading = true
 		return m, loadDataCmd()
-	case "tab", "right":
-		if m.panel == panelCategories {
+	}
+
+	// ── Categories panel ──────────────────────────────────────────────────────
+	if m.panel == panelCategories {
+		switch key {
+		case "j", "down":
+			m.catIdx = clamp(m.catIdx+1, 0, len(categoryOrder)-1)
+			m.itemIdx = 0
+			m.searchQuery = ""
+		case "k", "up":
+			m.catIdx = clamp(m.catIdx-1, 0, len(categoryOrder)-1)
+			m.itemIdx = 0
+			m.searchQuery = ""
+		case "enter", "l", "right", "tab":
+			// go deeper into items
 			m.panel = panelItems
-		} else {
-			m.panel = panelCategories
 		}
 		return m, nil
-	case "left":
+	}
+
+	// ── Items panel ───────────────────────────────────────────────────────────
+	switch key {
+	case "h", "left", "esc":
+		// go back to categories
 		m.panel = panelCategories
+		m.searchActive = false
+		m.searchQuery = ""
+		return m, nil
+	case "/":
+		m.searchActive = true
 		return m, nil
 	case "s":
 		if categoryOrder[m.catIdx] == "skills" {
@@ -454,30 +475,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.itemIdx = 0
 		}
 		return m, nil
-	case "/":
-		m.searchActive = true
-		m.panel = panelItems
-		return m, nil
 	}
 
-	// Panel navigation
-	if m.panel == panelCategories {
-		switch key {
-		case "j", "down":
-			m.catIdx = clamp(m.catIdx+1, 0, len(categoryOrder)-1)
-			m.itemIdx = 0
-			m.searchQuery = ""
-		case "k", "up":
-			m.catIdx = clamp(m.catIdx-1, 0, len(categoryOrder)-1)
-			m.itemIdx = 0
-			m.searchQuery = ""
-		case "enter":
-			m.panel = panelItems
-		}
-		return m, nil
-	}
-
-	// Items panel
 	items := m.filteredItems()
 	switch key {
 	case "j", "down":
@@ -538,7 +537,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, loadDataCmd()
 			}
 		}
-	case "enter":
+	case "enter", "l", "right":
 		if m.itemIdx < len(items) {
 			item := items[m.itemIdx]
 			if sess, ok := item.(data.OcSession); ok {
@@ -910,29 +909,39 @@ func (m Model) renderStatusBar() string {
 		return styleYellow.Bold(true).Render(key) + styleGray.Render(":"+label)
 	}
 
-	parts := []string{
-		k("Tab", "panel"),
-		k("j/k", "nav"),
-		k("/", "search"),
-	}
-	if categoryOrder[m.catIdx] == "skills" {
-		parts = append(parts, k("s", "scope"), k("n", "new"))
-	}
-	if isSession {
-		parts = append(parts, k("↵", "transcript"))
+	var parts []string
+	if m.panel == panelCategories {
+		parts = []string{
+			k("j/k", "nav"),
+			k("↵/l/→", "open"),
+			k("r", "reload"),
+			k("q", "quit"),
+		}
 	} else {
-		parts = append(parts, k("↵", "detail"))
+		parts = []string{
+			k("j/k", "nav"),
+			k("h/←/Esc", "back"),
+			k("/", "search"),
+		}
+		if categoryOrder[m.catIdx] == "skills" {
+			parts = append(parts, k("s", "scope"), k("n", "new"))
+		}
+		if isSession {
+			parts = append(parts, k("↵/l", "transcript"))
+		} else {
+			parts = append(parts, k("↵/l", "detail"))
+		}
+		if canEdit {
+			parts = append(parts, k("o", "edit"))
+		}
+		if canToggle {
+			parts = append(parts, k("t", "toggle"))
+		}
+		if canDelete {
+			parts = append(parts, k("d", "delete"))
+		}
+		parts = append(parts, k("r", "reload"), k("q", "quit"))
 	}
-	if canEdit {
-		parts = append(parts, k("o", "edit"))
-	}
-	if canToggle {
-		parts = append(parts, k("t", "toggle"))
-	}
-	if canDelete {
-		parts = append(parts, k("d", "delete"))
-	}
-	parts = append(parts, k("r", "reload"), k("q", "quit"))
 
 	return " " + strings.Join(parts, "  ")
 }

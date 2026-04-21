@@ -460,17 +460,16 @@ func renderDetailModal(m *Model) string {
 }
 
 func buildDetailFooter(item data.AnyItem, scrollable bool) string {
-	keys := []string{styleYellow.Bold(true).Render("Esc") + styleGray.Render(" close")}
+	y := func(k, label string) string {
+		return styleYellow.Bold(true).Render(k) + styleGray.Render(" "+label)
+	}
+	keys := []string{y("q/Esc", "close")}
 	kind := item.ItemKind()
 	if kind == "skill" || kind == "workspace" || kind == "memory" {
-		keys = append(keys, styleYellow.Bold(true).Render("o")+styleGray.Render(" edit"))
+		keys = append(keys, y("o", "edit"))
 	}
 	if scrollable {
-		keys = append(keys,
-			styleYellow.Bold(true).Render("j/k")+styleGray.Render(" scroll"),
-			styleYellow.Bold(true).Render("d/u")+styleGray.Render(" page"),
-			styleYellow.Bold(true).Render("g/G")+styleGray.Render(" top/btm"),
-		)
+		keys = append(keys, y("j/k", "scroll"), y("d/u", "page"), y("g/G", "top/btm"))
 	}
 	return strings.Join(keys, "   ")
 }

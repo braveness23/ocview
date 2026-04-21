@@ -172,17 +172,14 @@ func renderTranscriptView(m *Model) string {
 			break
 		}
 	}
-	footerKeys := []string{
-		styleYellow.Bold(true).Render("j/k") + styleGray.Render(" scroll"),
+	y := func(k, label string) string {
+		return styleYellow.Bold(true).Render(k) + styleGray.Render(" "+label)
 	}
+	footerKeys := []string{y("j/k", "scroll")}
 	if hasTools {
-		footerKeys = append(footerKeys, styleYellow.Bold(true).Render("↵")+styleGray.Render(" expand"))
+		footerKeys = append(footerKeys, y("↵", "expand"))
 	}
-	footerKeys = append(footerKeys,
-		styleYellow.Bold(true).Render("d/u")+styleGray.Render(" page"),
-		styleYellow.Bold(true).Render("g/G")+styleGray.Render(" top/btm"),
-		styleYellow.Bold(true).Render("q")+styleGray.Render(" back"),
-	)
+	footerKeys = append(footerKeys, y("d/u", "page"), y("g/G", "top/btm"), y("q/Esc", "back"))
 	footerLeft := " " + strings.Join(footerKeys, "   ")
 	footerRight := ""
 	if totalLines > 0 {
