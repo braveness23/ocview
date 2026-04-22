@@ -36,7 +36,8 @@ func LoadCron() []OcCronJob {
 			Schedule    json.RawMessage `json:"schedule"`
 			Command     string          `json:"command"`
 			Payload     *struct {
-				Text string `json:"text"`
+				Text    string `json:"text"`
+				Message string `json:"message"`
 			} `json:"payload"`
 			Enabled     *bool  `json:"enabled"`
 			Description string `json:"description"`
@@ -64,6 +65,9 @@ func LoadCron() []OcCronJob {
 		command := job.Command
 		if command == "" && job.Payload != nil {
 			command = job.Payload.Text
+			if command == "" {
+				command = job.Payload.Message
+			}
 		}
 
 		id := job.ID

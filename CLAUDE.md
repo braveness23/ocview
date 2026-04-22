@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 go build -o ocview .          # Build binary
 go run .                      # Run directly from source
-cp ocview ~/.local/bin/ocview # Install to PATH
+ln -sf $(pwd)/ocview ~/.local/bin/ocview # Symlink into PATH (one-time setup; go build updates it automatically)
 ```
 
 ## Project direction
