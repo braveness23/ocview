@@ -15,17 +15,21 @@ type ServiceStatus struct {
 }
 
 type AppData struct {
-	Skills    []OcSkill
-	Hooks     []OcHook
-	Models    []OcModel
-	Workspace []OcWorkspaceFile
-	MCP       []OcMcpServer
-	Sessions  []OcSession
-	Cron      []OcCronJob
-	Memory    []OcMemoryChunk
-	Updates   []OcUpdateRelease
-	Webhooks  []OcWebhook
-	AuditLog  []OcAuditEntry
+	Skills      []OcSkill
+	Hooks       []OcHook
+	Models      []OcModel
+	Workspace   []OcWorkspaceFile
+	MCP         []OcMcpServer
+	Sessions    []OcSession
+	Cron        []OcCronJob
+	Tasks       []OcTaskRun
+	Memory      []OcMemoryChunk
+	Updates     []OcUpdateRelease
+	Webhooks    []OcWebhook
+	AuditLog    []OcAuditEntry
+	AgentConfig []OcConfigSection
+	Devices     []OcDevice
+	Logs        []OcLogFile
 }
 
 // ─── Concrete item types ─────────────────────────────────────────────────────
@@ -119,6 +123,14 @@ func (s OcSession) ItemKind() string { return "session" }
 func (s OcSession) ItemID() string   { return s.ID }
 func (s OcSession) ItemName() string { return s.Name_ }
 
+type CronRunRecord struct {
+	Ts         int64
+	Status     string
+	Summary    string
+	DurationMs int64
+	NextRunMs  int64
+}
+
 type OcCronJob struct {
 	ID          string
 	Name_       string
@@ -126,6 +138,7 @@ type OcCronJob struct {
 	Command     string
 	Enabled     bool
 	Description string
+	LastRuns    []CronRunRecord
 }
 
 func (c OcCronJob) ItemKind() string { return "cron" }
@@ -210,6 +223,62 @@ type OcAuditEntry struct {
 func (a OcAuditEntry) ItemKind() string { return "auditlog" }
 func (a OcAuditEntry) ItemID() string   { return a.ID }
 func (a OcAuditEntry) ItemName() string { return a.Name_ }
+
+type OcTaskRun struct {
+	ID        string
+	Name_     string
+	Runtime   string
+	Label     string
+	Status    string
+	Summary   string
+	CreatedAt int64
+	EndedAt   int64
+	SourceID  string
+	ErrorMsg  string
+}
+
+func (t OcTaskRun) ItemKind() string { return "taskrun" }
+func (t OcTaskRun) ItemID() string   { return t.ID }
+func (t OcTaskRun) ItemName() string { return t.Name_ }
+
+type OcDevice struct {
+	ID        string
+	Name_     string
+	DeviceID  string
+	Platform  string
+	Role      string
+	Scopes    []string
+	ClientID  string
+	CreatedAt int64
+	Status    string // "paired" | "pending"
+}
+
+func (d OcDevice) ItemKind() string { return "device" }
+func (d OcDevice) ItemID() string   { return d.ID }
+func (d OcDevice) ItemName() string { return d.Name_ }
+
+type OcConfigSection struct {
+	ID      string
+	Name_   string
+	Summary string
+	Lines   []string
+}
+
+func (c OcConfigSection) ItemKind() string { return "config" }
+func (c OcConfigSection) ItemID() string   { return c.ID }
+func (c OcConfigSection) ItemName() string { return c.Name_ }
+
+type OcLogFile struct {
+	ID        string
+	Name_     string
+	FilePath  string
+	Content   string
+	LineCount int
+}
+
+func (l OcLogFile) ItemKind() string { return "logfile" }
+func (l OcLogFile) ItemID() string   { return l.ID }
+func (l OcLogFile) ItemName() string { return l.Name_ }
 
 // ─── Transcript types ─────────────────────────────────────────────────────────
 

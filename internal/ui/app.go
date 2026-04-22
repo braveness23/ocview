@@ -50,21 +50,24 @@ type changelogErrorMsg struct{}
 
 var categoryOrder = []string{
 	"skills", "hooks", "models", "workspace", "mcp",
-	"sessions", "cron", "memory", "updates", "webhooks", "auditlog",
+	"sessions", "cron", "tasks", "memory", "updates",
+	"webhooks", "auditlog", "agentconfig", "devices", "logs",
 }
 
 var categoryLabel = map[string]string{
 	"skills": "Skills", "hooks": "Hooks", "models": "Models",
 	"workspace": "Workspace", "mcp": "MCP", "sessions": "Sessions",
-	"cron": "Cron", "memory": "Memory", "updates": "Updates",
+	"cron": "Cron", "tasks": "Tasks", "memory": "Memory", "updates": "Updates",
 	"webhooks": "Webhooks", "auditlog": "AuditLog",
+	"agentconfig": "Config", "devices": "Devices", "logs": "Logs",
 }
 
 var categoryPanelLabel = map[string]string{
 	"skills": "SKILLS", "hooks": "HOOKS", "models": "MODELS",
 	"workspace": "WORKSPACE", "mcp": "MCP SERVERS", "sessions": "SESSIONS",
-	"cron": "CRON JOBS", "memory": "MEMORY CHUNKS", "updates": "RELEASES",
-	"webhooks": "WEBHOOKS", "auditlog": "CONFIG AUDIT LOG",
+	"cron": "CRON JOBS", "tasks": "TASK RUNS", "memory": "MEMORY CHUNKS",
+	"updates": "RELEASES", "webhooks": "WEBHOOKS", "auditlog": "CONFIG AUDIT LOG",
+	"agentconfig": "AGENT CONFIG", "devices": "DEVICES", "logs": "LOGS",
 }
 
 // ─── Model ────────────────────────────────────────────────────────────────────
@@ -821,6 +824,46 @@ func (m Model) renderItemPanel(height, visibleCount int) string {
 			} else {
 				extra = "  " + styleGray.Render(ts)
 			}
+		case data.OcTaskRun:
+			statusColor := colorGray
+			switch v.Status {
+			case "succeeded":
+				statusColor = colorGreen
+			case "failed", "error":
+				statusColor = colorRed
+			case "running":
+				statusColor = colorYellow
+			}
+			badge := lipgloss.NewStyle().Foreground(statusColor).Render("[" + v.Status + "]")
+			extra = "  " + badge
+			if v.Runtime != "" && v.Runtime != "cron" {
+				extra += " " + styleGray.Render(v.Runtime)
+			}
+		case data.OcDevice:
+			parts := ""
+			if v.Platform != "" {
+				parts = v.Platform
+			}
+			if v.Role != "" {
+				if parts != "" {
+					parts += "  "
+				}
+				parts += v.Role
+			}
+			statusColor := colorGreen
+			if v.Status == "pending" {
+				statusColor = colorYellow
+			}
+			extra = "  " + lipgloss.NewStyle().Foreground(statusColor).Render("["+v.Status+"]")
+			if parts != "" {
+				extra += " " + styleGray.Render(parts)
+			}
+		case data.OcConfigSection:
+			if v.Summary != "" {
+				extra = "  " + styleGray.Render(truncate(v.Summary, 40))
+			}
+		case data.OcLogFile:
+			extra = "  " + styleGray.Render(fmt.Sprintf("%d lines", v.LineCount))
 		}
 
 		if isSelected {
@@ -1005,6 +1048,22 @@ func (m Model) itemsForCategory(kind string) []data.AnyItem {
 	case "auditlog":
 		for _, a := range m.appData.AuditLog {
 			items = append(items, a)
+		}
+	case "tasks":
+		for _, t := range m.appData.Tasks {
+			items = append(items, t)
+		}
+	case "agentconfig":
+		for _, c := range m.appData.AgentConfig {
+			items = append(items, c)
+		}
+	case "devices":
+		for _, d := range m.appData.Devices {
+			items = append(items, d)
+		}
+	case "logs":
+		for _, l := range m.appData.Logs {
+			items = append(items, l)
 		}
 	}
 	return items

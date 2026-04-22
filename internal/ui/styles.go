@@ -79,6 +79,14 @@ func kindColor(kind string) lipgloss.Color {
 		return colorBlue
 	case "auditlog":
 		return colorYellow
+	case "taskrun":
+		return colorGreen
+	case "device":
+		return colorBlue
+	case "config":
+		return colorCyan
+	case "logfile":
+		return colorGray
 	}
 	return colorGray
 }
@@ -107,6 +115,14 @@ func kindLabel(kind string) string {
 		return "webhook"
 	case "auditlog":
 		return "audit"
+	case "taskrun":
+		return "task"
+	case "device":
+		return "device"
+	case "config":
+		return "config"
+	case "logfile":
+		return "log"
 	}
 	return kind
 }

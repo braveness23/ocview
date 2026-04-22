@@ -27,6 +27,14 @@ func renderDetailLines(item data.AnyItem, textWidth int, fetchedChanges, fetched
 		return updateLines(v, textWidth, fetchedChanges, fetchedFixes, fetchState)
 	case data.OcAuditEntry:
 		return auditLines(v, textWidth)
+	case data.OcCronJob:
+		return cronLines(v, textWidth)
+	case data.OcTaskRun:
+		return taskRunLines(v, textWidth)
+	case data.OcConfigSection:
+		return v.Lines
+	case data.OcLogFile:
+		return wrapText(v.Content, textWidth)
 	}
 	return nil
 }
@@ -189,7 +197,8 @@ func auditLines(v data.OcAuditEntry, w int) []string {
 // isScrollableKind returns true for item kinds that use the scrollable text renderer.
 func isScrollableKind(kind string) bool {
 	switch kind {
-	case "skill", "workspace", "memory", "update", "auditlog":
+	case "skill", "workspace", "memory", "update", "auditlog",
+		"cron", "taskrun", "config", "logfile":
 		return true
 	}
 	return false
@@ -208,10 +217,10 @@ func renderDetailBody(item data.AnyItem, textWidth int) string {
 		renderMcpBody(&sb, v)
 	case data.OcSession:
 		renderSessionBody(&sb, v)
-	case data.OcCronJob:
-		renderCronBody(&sb, v)
 	case data.OcWebhook:
 		renderWebhookBody(&sb, v)
+	case data.OcDevice:
+		renderDeviceBody(&sb, v)
 	}
 	return sb.String()
 }
@@ -335,6 +344,127 @@ func renderCronBody(sb *strings.Builder, v data.OcCronJob) {
 
 	section(sb, "COMMAND")
 	sb.WriteString("\n  " + v.Command + "\n")
+}
+
+func cronLines(v data.OcCronJob, w int) []string {
+	enabledStr := styleYellow.Render("no")
+	if v.Enabled {
+		enabledStr = styleGreen.Render("yes")
+	}
+	lines := []string{
+		fmt.Sprintf("enabled:   %s", enabledStr),
+		fmt.Sprintf("schedule:  %s", styleCyan.Render(v.Schedule)),
+	}
+	if v.Description != "" {
+		lines = append(lines, "", v.Description)
+	}
+	lines = append(lines, "", divider(w), "", "### Command", "")
+	lines = append(lines, wrapText(v.Command, w)...)
+
+	if len(v.LastRuns) > 0 {
+		lines = append(lines, "", divider(w), "", "### Run History", "")
+		for _, r := range v.LastRuns {
+			ts := fmtTimestamp(r.Ts)
+			dur := ""
+			if r.DurationMs > 0 {
+				if r.DurationMs < 1000 {
+					dur = fmt.Sprintf("  %dms", r.DurationMs)
+				} else {
+					dur = fmt.Sprintf("  %.1fs", float64(r.DurationMs)/1000)
+				}
+			}
+			statusColor := colorGray
+			switch r.Status {
+			case "ok", "succeeded":
+				statusColor = colorGreen
+			case "failed", "error":
+				statusColor = colorRed
+			}
+			badge := lipgloss.NewStyle().Foreground(statusColor).Render(r.Status)
+			lines = append(lines, fmt.Sprintf("%s  %s%s", ts, badge, styleGray.Render(dur)))
+			if r.Summary != "" {
+				lines = append(lines, wrapText("  "+r.Summary, w)...)
+			}
+			lines = append(lines, "")
+		}
+	}
+	return lines
+}
+
+func taskRunLines(v data.OcTaskRun, w int) []string {
+	statusColor := colorGray
+	switch v.Status {
+	case "succeeded":
+		statusColor = colorGreen
+	case "failed", "error":
+		statusColor = colorRed
+	case "running":
+		statusColor = colorYellow
+	}
+	statusStr := lipgloss.NewStyle().Foreground(statusColor).Render(v.Status)
+
+	var dur string
+	if v.CreatedAt > 0 && v.EndedAt > 0 {
+		ms := v.EndedAt - v.CreatedAt
+		if ms < 1000 {
+			dur = fmt.Sprintf("%dms", ms)
+		} else {
+			dur = fmt.Sprintf("%.1fs", float64(ms)/1000)
+		}
+	}
+
+	lines := []string{
+		fmt.Sprintf("status:    %s", statusStr),
+		fmt.Sprintf("runtime:   %s", v.Runtime),
+	}
+	if v.SourceID != "" {
+		lines = append(lines, fmt.Sprintf("source:    %s", styleGray.Render(truncate(v.SourceID, w-12))))
+	}
+	if v.CreatedAt > 0 {
+		lines = append(lines, fmt.Sprintf("started:   %s", fmtTimestamp(v.CreatedAt)))
+	}
+	if v.EndedAt > 0 {
+		lines = append(lines, fmt.Sprintf("ended:     %s", fmtTimestamp(v.EndedAt)))
+	}
+	if dur != "" {
+		lines = append(lines, fmt.Sprintf("duration:  %s", dur))
+	}
+
+	if v.ErrorMsg != "" {
+		lines = append(lines, "", divider(w), "", "### Error", "")
+		lines = append(lines, wrapText(v.ErrorMsg, w)...)
+	}
+	if v.Summary != "" {
+		lines = append(lines, "", divider(w), "", "### Summary", "")
+		lines = append(lines, wrapText(v.Summary, w)...)
+	}
+	return lines
+}
+
+func renderDeviceBody(sb *strings.Builder, v data.OcDevice) {
+	section(sb, "IDENTITY")
+	statusColor := styleGreen
+	if v.Status == "pending" {
+		statusColor = styleYellow
+	}
+	field(sb, "status", statusColor.Render(v.Status))
+	field(sb, "platform", styleCyan.Render(v.Platform))
+	field(sb, "role", v.Role)
+	field(sb, "clientId", v.ClientID)
+
+	section(sb, "DEVICE ID")
+	sb.WriteString("\n  " + styleGray.Render(v.DeviceID) + "\n")
+
+	if len(v.Scopes) > 0 {
+		section(sb, "SCOPES")
+		for _, s := range v.Scopes {
+			sb.WriteString("  • " + s + "\n")
+		}
+	}
+	if v.CreatedAt > 0 {
+		section(sb, "CREATED")
+		sb.WriteString("\n  " + fmtTimestamp(v.CreatedAt) + "\n")
+	}
 }
 
 func renderWebhookBody(sb *strings.Builder, v data.OcWebhook) {

@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -91,7 +92,51 @@ func LoadCron() []OcCronJob {
 			Command:     command,
 			Enabled:     enabled,
 			Description: job.Description,
+			LastRuns:    loadCronRuns(home, id),
 		})
 	}
 	return items
+}
+
+func loadCronRuns(home, jobID string) []CronRunRecord {
+	if jobID == "" {
+		return nil
+	}
+	path := filepath.Join(home, ".openclaw", "cron", "runs", jobID+".jsonl")
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var all []CronRunRecord
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		var row struct {
+			Ts         int64  `json:"ts"`
+			Status     string `json:"status"`
+			Summary    string `json:"summary"`
+			DurationMs int64  `json:"durationMs"`
+			NextRunMs  int64  `json:"nextRunAtMs"`
+		}
+		if err := json.Unmarshal(scanner.Bytes(), &row); err != nil {
+			continue
+		}
+		all = append(all, CronRunRecord{
+			Ts:         row.Ts,
+			Status:     row.Status,
+			Summary:    row.Summary,
+			DurationMs: row.DurationMs,
+			NextRunMs:  row.NextRunMs,
+		})
+	}
+	// Return newest-first (last N entries reversed)
+	const maxRuns = 10
+	if len(all) > maxRuns {
+		all = all[len(all)-maxRuns:]
+	}
+	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
+		all[i], all[j] = all[j], all[i]
+	}
+	return all
 }

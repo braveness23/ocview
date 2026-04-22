@@ -49,6 +49,11 @@ func GetEditableFilePath(item data.AnyItem) string {
 	case data.OcModel:
 		_ = v
 		return openclawJSON
+	case data.OcLogFile:
+		return v.FilePath // empty string for journalctl — disables edit
+	case data.OcConfigSection:
+		_ = v
+		return openclawJSON
 	}
 	return ""
 }
