@@ -316,9 +316,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "o":
 			path := actions.GetEditableFilePath(m.modalItem)
 			if path != "" {
+				line := actions.GetEditLineNumber(m.modalItem)
 				m.mode = viewMain
 				m.modalItem = nil
-				cmd := actions.EditorCmd(path)
+				cmd := actions.EditorCmd(path, line)
 				return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
 					return editorDoneMsg{err}
 				})
@@ -356,7 +357,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					return m.setNotify("Failed: " + err.Error())
 				}
-				cmd := actions.EditorCmd(skillPath)
+				cmd := actions.EditorCmd(skillPath, 0)
 				return m, tea.Batch(
 					tea.ExecProcess(cmd, func(err error) tea.Msg { return editorDoneMsg{err} }),
 				)
@@ -505,9 +506,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "o":
 		if m.itemIdx < len(items) {
-			path := actions.GetEditableFilePath(items[m.itemIdx])
+			item := items[m.itemIdx]
+			path := actions.GetEditableFilePath(item)
 			if path != "" {
-				cmd := actions.EditorCmd(path)
+				cmd := actions.EditorCmd(path, actions.GetEditLineNumber(item))
 				return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
 					return editorDoneMsg{err}
 				})
@@ -896,12 +898,21 @@ func (m Model) renderStatusBar() string {
 			canEdit = true
 		case data.OcHook:
 			_ = v
+			canEdit = true
 			canToggle = true
 		case data.OcCronJob:
+			canEdit = true
 			canToggle = true
 			canDelete = true
 		case data.OcWebhook:
+			canEdit = true
 			canToggle = true
+		case data.OcMcpServer:
+			_ = v
+			canEdit = true
+		case data.OcModel:
+			_ = v
+			canEdit = true
 		}
 	}
 

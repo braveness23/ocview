@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/braveness23/ocview/internal/actions"
 	"github.com/braveness23/ocview/internal/data"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -464,8 +465,7 @@ func buildDetailFooter(item data.AnyItem, scrollable bool) string {
 		return styleYellow.Bold(true).Render(k) + styleGray.Render(" "+label)
 	}
 	keys := []string{y("q/Esc", "close")}
-	kind := item.ItemKind()
-	if kind == "skill" || kind == "workspace" || kind == "memory" {
+	if actions.GetEditableFilePath(item) != "" {
 		keys = append(keys, y("o", "edit"))
 	}
 	if scrollable {

@@ -2,9 +2,11 @@ package actions
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/braveness23/ocview/internal/data"
 )
@@ -32,11 +34,66 @@ func GetEditableFilePath(item data.AnyItem) string {
 		return v.FilePath
 	case data.OcMemoryChunk:
 		return v.Path
+	case data.OcCronJob:
+		_ = v
+		return cronFile
+	case data.OcHook:
+		_ = v
+		return openclawJSON
+	case data.OcMcpServer:
+		_ = v
+		return openclawJSON
+	case data.OcWebhook:
+		_ = v
+		return openclawJSON
+	case data.OcModel:
+		_ = v
+		return openclawJSON
 	}
 	return ""
 }
 
-func EditorCmd(filePath string) *exec.Cmd {
+func GetEditLineNumber(item data.AnyItem) int {
+	switch v := item.(type) {
+	case data.OcMemoryChunk:
+		return v.StartLine
+	case data.OcHook:
+		return lineOf(openclawJSON, `"`+v.ItemName()+`"`)
+	case data.OcMcpServer:
+		return lineOf(openclawJSON, `"`+v.ItemName()+`"`)
+	case data.OcWebhook:
+		return lineOf(openclawJSON, `"`+v.ItemName()+`"`)
+	case data.OcModel:
+		id := v.ID
+		if i := strings.LastIndex(id, "/"); i >= 0 {
+			id = id[i+1:]
+		}
+		return lineOf(openclawJSON, `"id": "`+id+`"`)
+	case data.OcCronJob:
+		if v.ID != "" {
+			if line := lineOf(cronFile, `"`+v.ID+`"`); line > 0 {
+				return line
+			}
+		}
+		return lineOf(cronFile, `"`+v.ItemName()+`"`)
+	}
+	return 0
+}
+
+func lineOf(path, search string) int {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	content := string(b)
+	idx := strings.Index(content, search)
+	if idx < 0 {
+		return 0
+	}
+	return strings.Count(content[:idx], "\n") + 1
+}
+
+func EditorCmd(filePath string, line int) *exec.Cmd {
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = os.Getenv("VISUAL")
@@ -44,7 +101,19 @@ func EditorCmd(filePath string) *exec.Cmd {
 	if editor == "" {
 		editor = "nano"
 	}
-	return exec.Command(editor, filePath)
+	if line <= 0 {
+		return exec.Command(editor, filePath)
+	}
+	base := filepath.Base(editor)
+	switch base {
+	case "code", "code-insiders":
+		return exec.Command(editor, "--goto", fmt.Sprintf("%s:%d", filePath, line))
+	case "hx", "micro":
+		return exec.Command(editor, fmt.Sprintf("%s:%d", filePath, line))
+	default:
+		// vim, nvim, vi, nano, emacs, and most others accept +N
+		return exec.Command(editor, fmt.Sprintf("+%d", line), filePath)
+	}
 }
 
 func CreateSkill(dirName string) (string, error) {
