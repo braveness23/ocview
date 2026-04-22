@@ -11,7 +11,7 @@ Requires Go 1.22+.
 ```bash
 git clone https://github.com/braveness23/ocview
 cd ocview
-go build -o ocview-go .
+go build -o ocview .
 ```
 
 Or just run directly:
@@ -23,7 +23,7 @@ go run .
 ## Usage
 
 ```bash
-./ocview-go
+./ocview
 ```
 
 Reads live state from `~/.openclaw/`. No arguments needed.

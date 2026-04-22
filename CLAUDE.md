@@ -5,15 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-bun run dev          # Run directly from source (no build step)
-bun run build        # Bundle to dist/index.js via build.ts
-bun test             # Run all tests
-bun test tests/data.test.ts   # Run a single test file
+go build -o ocview .          # Build binary
+go run .                      # Run directly from source
+cp ocview ~/.local/bin/ocview # Install to PATH
 ```
 
 ## Project direction
 
-ocview started as a read-only browser for OpenClaw state. The goal is to make it a **can't-live-without diagnostic and control tool** — the first thing you open when something feels off with Sparky, and a place to understand what's actually running under the hood.
+ocview is a terminal UI (TUI) for browsing OpenClaw state — the first thing you open when something feels off with Sparky, and a place to understand what's actually running under the hood.
 
 Guiding principle: every item should be fully readable, not just listed. If a user can see that a hook exists but can't see what it does or where its code lives, the tool has failed.
 
@@ -28,102 +27,64 @@ Guiding principle: every item should be fully readable, not just listed. If a us
 - Session channel extraction from filename prefix or JSONL metadata fields
 - Skill management: `n` create new installed skill (prompts for dir name, scaffolds SKILL.md, opens in editor), `d` delete installed skill (with y/n confirmation); built-in skills are protected
 - Cron job deletion: `d` removes the job from `jobs.json` (with confirmation)
+- Config audit log category
 
 ## Architecture
 
-**ocview** is a terminal UI (TUI) for browsing OpenClaw state — built with [Ink](https://github.com/vadimdemedes/ink) (React for terminals) and Bun.
+**ocview** is built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea) (Charm TUI framework) with [Lip Gloss](https://github.com/charmbracelet/lipgloss) for styling.
 
 ### Data flow
 
-`src/index.tsx` → `loadAll()` → all loaders run in parallel → `<App data={...} />`
+`main.go` → `loadAll()` → all loaders run in parallel → initial `model` → Bubble Tea `tea.NewProgram`
 
-All data is loaded once at startup (no live refresh). Each category has a dedicated loader in `src/data/`:
+All data is loaded once at startup (no live refresh unless `r` is pressed). Each category has a dedicated loader in `internal/data/`:
 
 | Loader | Source |
 |--------|--------|
-| `skills.ts` | `~/.openclaw/skills/` (installed) + npm global `openclaw/skills/` (built-in) |
-| `hooks.ts` | `~/.openclaw/openclaw.json` → `hooks.internal.entries` |
-| `models.ts` | `~/.openclaw/openclaw.json` → `models.providers.litellm.models` |
-| `workspace.ts` | `~/.openclaw/workspace/` markdown files |
-| `mcp.ts` | `~/.openclaw/openclaw.json` → `mcp.servers` |
-| `sessions.ts` | `~/.openclaw/agents/main/sessions/*.jsonl` |
-| `cron.ts` | `~/.openclaw/cron/jobs.json` |
-| `memory.ts` | `~/.openclaw/memory/main.sqlite` |
+| `skills.go` | `~/.openclaw/skills/` (installed) + npm global `openclaw/skills/` (built-in) |
+| `hooks.go` | `~/.openclaw/openclaw.json` → `hooks.internal.entries` |
+| `models.go` | `~/.openclaw/openclaw.json` → `models.providers.litellm.models` |
+| `workspace.go` | `~/.openclaw/workspace/` markdown files |
+| `mcp.go` | `~/.openclaw/openclaw.json` → `mcp.servers` |
+| `sessions.go` | `~/.openclaw/agents/main/sessions/*.jsonl` |
+| `cron.go` | `~/.openclaw/cron/jobs.json` |
+| `memory.go` | `~/.openclaw/memory/main.sqlite` |
+| `audit.go` | `~/.openclaw/logs/config-audit.jsonl` |
+| `webhooks.go` | `~/.openclaw/openclaw.json` → `plugins.entries.webhooks` |
+| `status.go` | `systemctl`, `config-health.json`, npm package.json |
 
 ### Component structure
 
-```
-App (app.tsx)           — state: active panel, selection, search, scope, modal, transcriptSession
-└── Layout              — two-column layout, delegates to panels
-    ├── CategoryPanel   — left panel, category list
-    ├── ItemPanel       — right panel, item list + search bar
-    └── StatusBar       — bottom key-binding hints (context-aware: shows "transcript" for sessions)
-DetailModal             — scrollable overlay for all non-session items (q/Esc to close)
-TranscriptView          — full-screen session reader; replaces DetailModal for session items
-```
+Bubble Tea model (`internal/ui/model.go`) owns all state. Views:
+- **Category panel** — left column, category list
+- **Item panel** — right column, filtered item list + search bar
+- **Detail view** — scrollable overlay for non-session items
+- **Transcript view** — full-screen session reader with collapsible tool calls
+- **Status bar** — bottom key-binding hints (context-aware)
 
-`App` owns all state. `useInput` in `App` short-circuits when `transcriptSession` or `modalItem` is set so those views handle their own input without conflict.
+### Actions
 
-### Actions (`src/utils/actions.ts`)
+- `o` — open item's file in `$EDITOR` (suspends Bubble Tea, restores + reloads on exit)
+- `t` — toggle enabled (hooks, cron, webhooks) — rewrites the backing JSON in place
+- `r` — reload all data
+- `n` — new installed skill (prompts for dir name, scaffolds `SKILL.md`, opens in editor)
+- `d` — delete (installed skills, cron jobs) — shows `y/n` confirmation in status bar
 
-- `openInEditor(filePath)` — exits raw mode, spawns `$EDITOR`, restores raw mode on exit. App auto-reloads after.
-- `toggleHook(item)` — rewrites `openclaw.json` flipping `hooks.internal.entries.<name>.enabled`
-- `toggleCron(item)` — rewrites `cron/jobs.json` flipping the matching job's `enabled`
-- `createSkill(dirName)` — creates `~/.openclaw/skills/<dirName>/SKILL.md` with frontmatter scaffold; returns file path
-- `deleteSkill(item)` — `rmSync` the skill directory (installed skills only)
-- `deleteCronJob(item)` — filters the job out of `cron/jobs.json` by id/name
-- `getEditableFilePath(item)` — returns the file path for skill/workspace/memory items; null for others
+#### Input mode priority
+`transcriptView` → `detailView` → `newSkillPrompt` → `confirmDelete` → `searchActive` → normal navigation. Each mode short-circuits the ones below it.
 
-Keys: `o` (edit), `t` (toggle), `r` (reload), `n` (new skill), `d` (delete skill/cron). StatusBar shows hints only when relevant to the selected item. Confirm-delete prompt (`y/n`) replaces the status bar line.
+### Service status
 
-#### Input mode priority (App.tsx `useInput`)
-`transcriptSession` → `modalItem` → `newSkillName` → `confirmDelete` → `searchActive` → normal navigation. Each mode short-circuits the ones below it.
-
-### Service status (`src/data/status.ts`)
-
-Loaded async on mount (systemctl calls take ~200ms). Checks:
+Loaded async on startup (~200ms systemctl calls). Checks:
 1. `systemctl --user is-active` for running/stopped/failed
 2. `systemctl --user show --property=ActiveEnterTimestamp` for start time
-3. `~/.openclaw/logs/config-health.json` for socket health, then journal as fallback
-4. npm global `openclaw/package.json` for version (faster than `openclaw --version`)
-
-Status is displayed in the header between the title bar and panels. Notification messages (reload confirmation, toggle result, errors) replace the status line for 3 seconds.
-
-### Reload flow
-
-App owns `data` and `status` as state (initialized from `initialData` prop). Pressing `r` sets `reloading: true`, which triggers a `useEffect` that calls `loadAll()` + `loadStatus()` synchronously after a 50ms defer (so the "reloading…" spinner renders first).
-
-### View routing (App.tsx)
-
-Session items bypass `DetailModal` entirely — pressing Enter sets `transcriptSession` and renders `TranscriptView` full-screen. All other items open `DetailModal`. Both views call their `onClose` prop to return to the main layout.
-
-### DetailModal scroll
-
-Scrollable kinds: `skill`, `workspace`, `memory`. For these, content is pre-rendered into a flat `string[]` via `wrapText()`, then sliced by `scrollOffset`. Keys: `j/k` (line), `d/u` (half-page), `g/G` (top/bottom). A line counter appears in the footer when content overflows.
-
-Non-scrollable kinds (`hook`, `model`, `mcp`, `cron`) render as short JSX field lists — no scroll state needed.
-
-### TranscriptView
-
-Parses the session's JSONL file on mount via `src/data/transcript.ts`. Builds a flat `DisplayLine[]` from the `Turn[]` array — each turn contributes one or more display lines depending on content length and expand state. Tool calls and tool results render as `▶/▼ [tool] name` headers; pressing Enter on the cursor line toggles expansion inline. Scroll is line-based with a visible cursor (cyan highlight).
-
-### Types
-
-`src/types.ts` is the single source of truth for all data shapes. `AnyItem` is a discriminated union on `kind`. Adding a new category requires: a new `kind` in `CategoryKind`, a new interface, extending `AppData` and `AnyItem`, a new loader, and a new case in `getItemsForCategory`.
-
-Notable fields added for rich detail views:
-- `OcSkill.fullContent` — raw SKILL.md text
-- `OcWorkspaceFile.fullContent` — full file text (preview is still stored for list view)
-- `OcHook.rawConfig` — the raw JSON entry from openclaw.json (hooks are npm-package-implemented; config only controls enabled state)
-
-### Build
-
-`build.ts` bundles with Bun's bundler targeting `bun`, stubs out `react-devtools-core`, and patches the shebang to use the absolute path to `bun` (so the installed binary works without `bun` on `PATH`).
+3. `~/.openclaw/logs/config-health.json` for socket health
+4. npm global `openclaw/package.json` for version
 
 ### Cron job format
 
-`~/.openclaw/cron/jobs.json` uses a newer format where `schedule` is a nested object `{expr, tz, kind}` rather than a plain string, and the prompt text is in `payload.text` rather than a top-level `command` field. The loader in `cron.ts` normalises both into the flat `OcCronJob` shape (`schedule` → `"expr (tz)"`, `command` → `payload.text`). Don't assume the old flat format.
+`~/.openclaw/cron/jobs.json` uses a format where `schedule` is a nested object `{expr, tz, kind}` and the prompt text is in `payload.text`. The loader normalises this into a flat shape. Don't assume a top-level `schedule` string or `command` field.
 
 ### Skill parsing
 
-Skills support two formats: YAML frontmatter (`---\nname:\ndescription:\n---`) or plain markdown (first `#` heading = name, first non-heading paragraph = description). `parseSkillMd` in `skills.ts` returns `{ name, description, raw }` — `raw` is stored as `fullContent` for the detail view.
+Skills support two formats: YAML frontmatter (`---\nname:\ndescription:\n---`) or plain markdown (first `#` heading = name, first non-heading paragraph = description).
